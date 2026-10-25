@@ -12,7 +12,7 @@
   const $ = (id) => document.getElementById(id);
   const LIVE_BASE = 'https://resultados.tse.jus.br/oficial/ele2026/';
   const PRESIDENT_UFS = ['br','ac','al','ap','am','ba','ce','df','es','go','ma','mt','ms','mg','pa','pb','pr','pe','pi','rj','rn','rs','ro','rr','sc','sp','se','to','zz'];
-  const REFRESH_MS = 30000;
+  const REFRESH_MS = 10000;
   const COUNTING_START = Date.parse('2026-10-25T17:00:00-03:00');
   const REGION_UFS = { Norte:['ac','am','ap','pa','ro','rr','to'], Nordeste:['al','ba','ce','ma','pb','pe','pi','rn','se'], 'Centro-Oeste':['df','go','ms','mt'], Sudeste:['es','mg','rj','sp'], Sul:['pr','rs','sc'], Exterior:['zz'] };
   const HISTORY_KEY = 'eleicoes-2026-apuracao-v1';
@@ -987,7 +987,7 @@
     return m ? m[1] + '/' + m[2] + ' ' + String(r.hg || '').slice(0, 5) : null;
   }
   function tseStripMarkup() {
-    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checagem a cada 30s</span><p class="tse-note" id="tse-note" hidden></p></div>';
+    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checagem a cada 10s</span><p class="tse-note" id="tse-note" hidden></p></div>';
   }
   function updateTseStrip(nowArg) {
     if (typeof document === 'undefined' || !$('tse-gen')) return;
@@ -996,10 +996,10 @@
     const now = nowArg == null ? Date.now() : nowArg;
     $('tse-gen').innerHTML = 'TSE atualizou<span class="tse-long"> pela última vez</span>: <b>' + safeText(tseStamp(latestTseRecord(snapshot)) || '—') + '</b>';
     const next = $('tse-next');
-    const stale = pollState && pollState.lastGood && now - pollState.lastGood > 3 * REFRESH_MS;
+    const stale = pollState && pollState.lastGood && now - pollState.lastGood > Math.max(3 * REFRESH_MS, 90000);
     const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
     if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Última checagem às ' + hm(pollState.lastUpdated) : (stale ? 'TSE instável · dados de ' + hm(pollState.lastGood) + ' · ' : '') + 'Próxima checagem em ' + Math.max(0, Math.ceil(((REFRESH_MS * (1 + (pollState.skip || 0))) - (now - pollState.lastUpdated)) / 1000)) + 's';
-    else next.textContent = 'Checagem a cada 30s';
+    else next.textContent = 'Checagem a cada 10s';
     next.classList.toggle('is-stale', !!stale);
     const note = $('tse-note'), waiting = isAwaiting(snapshot);
     note.hidden = !waiting;
@@ -1353,7 +1353,7 @@
           updateWaiting(poller.state.snapshot);
           updateTseStrip();
           const elapsed = Date.now() - poller.state.lastUpdated;
-          $('pres-update').textContent = 'Última atualização TSE: ' + (poller.state.snapshot.pres.r2.br.dg || '—') + ' ' + (poller.state.snapshot.pres.r2.br.hg || '') + ' (Brasília) · atualiza em ' + Math.max(0, Math.ceil((30000 - elapsed) / 1000)) + 's';
+          $('pres-update').textContent = 'Última atualização TSE: ' + (poller.state.snapshot.pres.r2.br.dg || '—') + ' ' + (poller.state.snapshot.pres.r2.br.hg || '') + ' (Brasília) · atualiza em ' + Math.max(0, Math.ceil((REFRESH_MS - elapsed) / 1000)) + 's';
         }
       }, 1000) : null;
       void timer;
