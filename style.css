@@ -592,3 +592,39 @@ html[data-theme="light"] .tc-src { color:#8a5a00; }
   .dashboard-grid { grid-template-rows:194px minmax(0,1fr); }
   #pres-cards { height:194px; }
 }
+
+/* Projeção por urna (dentro de #pres-chance, abaixo da chance) */
+#pres-chance.has-urna { display:flex; flex-direction:column; gap:10px; }
+#pres-chance.has-urna > .chance-panel { height:auto; }
+.urna-panel { padding:11px 14px; }
+.urna-eyebrow { margin:0; color:var(--cyan); font-size:.6rem; font-weight:750; letter-spacing:.08em; }
+.urna-title { margin:2px 0 6px; font-size:1rem; }
+.urna-values { display:flex; justify-content:space-between; align-items:end; gap:10px; }
+.urna-values span { display:grid; gap:2px; }
+.urna-values b { font-size:.66rem; color:var(--muted); }
+.urna-values strong { font:700 1.3rem/1 "Space Grotesk",sans-serif; font-variant-numeric:tabular-nums; }
+.urna-flavio strong { color:var(--flavio); }
+.urna-lula strong { color:var(--lula); text-align:right; }
+.urna-bar { display:flex; overflow:hidden; width:100%; height:7px; margin:6px 0 5px; border-radius:99px; background:#232647; }
+.urna-bar span { display:block; height:100%; }
+.urna-bar-flavio { background:linear-gradient(90deg,#379de3,#62d5ec); }
+.urna-bar-lula { background:linear-gradient(90deg,#fd7c84,#df456f); }
+.urna-text { margin:3px 0 0; color:var(--muted); font-size:.62rem; line-height:1.4; }
+.urna-mobile { display:none; margin:0; color:var(--muted); font-size:.62rem; font-weight:750; text-align:center; }
+@media (max-width:700px) {
+  #pres-chance.has-urna { gap:6px; }
+  .urna-panel { padding:6px 9px!important; }
+  .urna-eyebrow,.urna-title,.urna-values,.urna-text { display:none; }
+  .urna-bar { height:5px; margin:0 0 3px; }
+  .urna-mobile { display:block; }
+}
+html[data-theme="light"] .urna-bar { background:#e3e5f2; }
+@media (min-width:1024px) {
+  .dashboard-side.has-urna-side { grid-template-rows:auto minmax(0,1fr); }
+  #pres-chance.has-urna { max-height:none; overflow:visible; }
+}
+@media (min-width:1024px) and (max-height:820px) {
+  #pres-chance.has-urna .chance-summary { display:none; }
+  #pres-chance.has-urna .urna-panel { padding:7px 11px; }
+  #pres-chance.has-urna .urna-title { margin:1px 0 3px; font-size:.9rem; }
+}

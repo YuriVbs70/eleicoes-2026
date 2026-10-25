@@ -60,7 +60,7 @@
     const target = typeof document !== 'undefined' ? $('pres-chance') : null;
     if (!target || !electionModel || !globalThis.EleicoesModelo) return;
     const version = ++chanceVersion;
-    if (!lastChance) { target.innerHTML = chanceMarkup(null, null, false); }  // com cálculo anterior, mantém o painel como está até o novo ficar pronto
+    if (!lastChance) { target.innerHTML = chanceMarkup(null, null, false); puAttach(target); }  // com cálculo anterior, mantém o painel como está até o novo ficar pronto
     setTimeout(() => {
       if (version !== chanceVersion) return;
       try {
@@ -68,10 +68,10 @@
         if (version !== chanceVersion) return;
         if (result && result.available) lastChance = { result, timestamp: Date.now() };
         lastChanceStale = !!stale || !result || !result.available;
-        target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, lastChanceStale);
+        target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, lastChanceStale); puAttach(target);
         twApply(target);
       } catch (_) {
-        target.innerHTML = chanceMarkup(lastChance && lastChance.result, lastChance && lastChance.timestamp, true);
+        target.innerHTML = chanceMarkup(lastChance && lastChance.result, lastChance && lastChance.timestamp, true); puAttach(target);
         twApply(target);
       }
     }, 0);
@@ -760,6 +760,50 @@
       buTimer = setTimeout(refreshBu, Math.min(BU_REFRESH_MS * Math.pow(2, Math.min(buFails, 3)), 8 * 60000));
     }
   }
+  // ---- Projeção por urna (scripts/projecao_urna.py no box, branch "dados") ----
+  // Aparece só quando o box marca "mostrar" (amostra do Brasil suficiente) ou com ?pu=1 (prévia).
+  const PU_URL = DADOS_BASE + 'projecao-urna.json';
+  let puTimer = null, puFails = 0;
+  function puPreview() { try { return typeof window !== 'undefined' && /[?&]pu=1\b/.test(window.location.search); } catch (e) { return false; } }
+  function puBlock(d, preview) {
+    if (!d || typeof d !== 'object') return null;
+    const n = d.nacional;
+    if (n && n.status === 'ok' && Number.isFinite(Number(n.lula)) && (d.mostrar === true || preview)) return { b: n, escopo: 'Brasil + Exterior', urnas: Number(n.observadas) || 0, det: (Number(n.urnas_br) || 0) + ' urnas da amostra do Brasil (de ' + fmtNumber.format(Number(n.amostra) || 0) + ') + ' + (Number(n.urnas_zz) || 0) + ' do Exterior' };
+    const z = d.zz;
+    if (preview && z && Number.isFinite(Number(z.lula))) return { b: z, escopo: 'só Exterior (prévia)', urnas: Number(z.observadas) || 0, det: (Number(z.observadas) || 0) + ' de ' + fmtNumber.format(Number(z.universo) || 0) + ' urnas do Exterior' };
+    return null;
+  }
+  let puHtml = '';
+  function puMarkup(d, preview) {
+    const x = puBlock(d, preview); if (!x) return '';
+    const b = x.b, f = Number(b.flavio), l = Number(b.lula), ic = Array.isArray(b.ic90) ? b.ic90.map(Number) : null;
+    const st = buStamp(d), fmt1 = (v) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v);
+    return '<section class="data-panel urna-panel" aria-live="polite"><p class="urna-eyebrow">BOLETINS DE URNA · ' + safeText(x.escopo) + '</p><h2 class="urna-title">Projeção por urna</h2>' +
+      '<div class="urna-values"><span class="urna-flavio"><b>Flávio</b><strong>' + fmt1(f) + '%</strong></span><span class="urna-lula"><b>Lula</b><strong>' + fmt1(l) + '%</strong></span></div>' +
+      '<div class="urna-bar" aria-hidden="true"><span class="urna-bar-flavio" style="width:' + f + '%"></span><span class="urna-bar-lula" style="width:' + l + '%"></span></div>' +
+      '<p class="urna-mobile">Projeção por urna · Flávio ' + fmt1(f) + '% · ' + fmt1(l) + '% Lula · ' + fmtNumber.format(x.urnas) + ' urnas</p>' +
+      '<p class="urna-text">% dos votos válidos no fim, estimado comparando cada urna já apurada com a mesma urna no 1º turno. Não é oficial.' + (ic ? ' Faixa provável (90%) do Lula: ' + fmt1(ic[0]) + '% a ' + fmt1(ic[1]) + '%.' : '') + '</p>' +
+      '<p class="urna-text">Base: <strong>' + fmtNumber.format(x.urnas) + ' urnas</strong> · ' + safeText(x.det) + (st ? ' · atualizado às ' + st.hm : '') + '</p></section>';
+  }
+  function puAttach(target) {
+    if (!target) return;
+    const old = target.querySelector('.urna-panel'); if (old) old.remove();
+    target.classList.toggle('has-urna', !!puHtml);
+    if (target.parentElement) target.parentElement.classList.toggle('has-urna-side', !!puHtml);
+    if (puHtml) target.insertAdjacentHTML('beforeend', puHtml);
+  }
+  function renderPu(d) {
+    puHtml = puMarkup(d, puPreview());
+    puAttach(typeof document !== 'undefined' ? $('pres-chance') : null);
+  }
+  async function refreshPu() {
+    try {
+      const res = await fetch(PU_URL + '?t=' + Math.floor(Date.now() / 60000), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      renderPu(await res.json()); puFails = 0;
+    } catch (err) { puFails += 1; console.warn('projeção por urna indisponível', err && err.message || err); }
+    finally { if (typeof setTimeout === 'function') { if (puTimer) clearTimeout(puTimer); puTimer = setTimeout(refreshPu, Math.min(60000 * Math.pow(2, Math.min(puFails, 3)), 8 * 60000)); } }
+  }
   function officialView(snapshot) {
     const z = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2.zz;
     if (!z || !z.bu) return snapshot;
@@ -1135,7 +1179,7 @@
       electionModel = model;
       render(snapshot);
       const poller = startPolling(snapshot);
-      pollState = poller.state; if (typeof fetch === 'function' && typeof setTimeout === 'function' && typeof window !== 'undefined' && window.location && /^https?:/.test(window.location.protocol)) refreshBu();
+      pollState = poller.state; if (typeof fetch === 'function' && typeof setTimeout === 'function' && typeof window !== 'undefined' && window.location && /^https?:/.test(window.location.protocol)) { refreshBu(); try { refreshPu(); } catch (e) { console.warn('projeção por urna', e); } }
       document.addEventListener('click', (event) => { if (event.target.closest && event.target.closest('[data-tc-reset]')) closeUfDetail(false); });
       const timer = typeof setInterval === 'function' ? setInterval(() => {
         if (typeof document !== 'undefined' && $('pres-update')) {
@@ -1226,5 +1270,5 @@
     schedule();
   }
   if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => { setupTabs(); setupUfControls(); setupPreferences(); setupDepthEffects(); loadInitial(); });
-  if (typeof module !== 'undefined' && module.exports) module.exports = { render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, puMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
 }());
