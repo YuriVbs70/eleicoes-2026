@@ -1,6 +1,22 @@
 (function () {
   'use strict';
 
+  // v3.19: recarga remota. Quando versao.txt no site muda, as abas abertas recarregam sozinhas.
+  // Trava anti-laço: no máximo uma recarga por versão a cada 3 min (o CDN pode servir index antigo por alguns minutos).
+  const BUILD = '3.19';
+  function checkVersion() {
+    if (typeof fetch !== 'function' || typeof window === 'undefined' || !/^https?:/.test(window.location.protocol)) return;
+    fetch('versao.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
+      const v = String(t || '').trim();
+      if (!/^\d+\.\d+$/.test(v) || v === BUILD) return;
+      let last = null; try { last = JSON.parse(sessionStorage.getItem('eleicoes-recarga') || 'null'); } catch (e) {}
+      if (last && last.v === v && Date.now() - last.t < 180000) return;
+      try { sessionStorage.setItem('eleicoes-recarga', JSON.stringify({ v, t: Date.now() })); } catch (e) {}
+      window.location.reload();
+    }).catch(() => {});
+  }
+  if (typeof setInterval === 'function') setInterval(checkVersion, 30000);
+
   const UF_NAMES = {
     ac: 'Acre', al: 'Alagoas', ap: 'Amapá', am: 'Amazonas', ba: 'Bahia', ce: 'Ceará', df: 'Distrito Federal',
     es: 'Espírito Santo', go: 'Goiás', ma: 'Maranhão', mt: 'Mato Grosso', ms: 'Mato Grosso do Sul', mg: 'Minas Gerais',

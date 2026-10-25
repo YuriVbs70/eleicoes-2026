@@ -89,7 +89,8 @@
     const mun = bu && bu.mun;
     const munOk = !!(mun && valid(mun.swing) && valid(mun.cov) && mun.cov >= 0.002 && k > 0 && mun.ufs && typeof mun.ufs === 'object');
     const offCenter = munOk ? Math.max(-0.15, Math.min(0.15, mun.swing)) : rawCenter;
-    const center = buWeight > 0 ? (k * offCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.05) : offCenter * (k / (k + 0.05));
+    // v3.19: encolhimento 0,05→0,15. As cidades que apuram cedo (interior, Sul/CO) não falam pelas capitais; o ganho medido só manda no centro à medida que a apuração avança.
+    const center = buWeight > 0 ? (k * offCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.15) : offCenter * (k / (k + 0.15));
     // Só a amostra do Brasil reduz a incerteza nacional; o Exterior move o centro, mas não estreita.
     const nationalSd = model.nacional.sd_nac * Math.sqrt(0.05 / (0.05 + kS));
     let seed = snapshotSeed(snapshot, model.versao);
