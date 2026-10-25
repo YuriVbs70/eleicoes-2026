@@ -49,6 +49,7 @@ def fetch_all(jobs):
     return out
 
 def data_dir():
+    if os.environ.get("ELEICOES_DATA_DIR"): return os.path.abspath(os.environ["ELEICOES_DATA_DIR"])
     return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
 
 def point_scope(d, require_votes=False):

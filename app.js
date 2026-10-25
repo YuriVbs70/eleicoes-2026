@@ -418,6 +418,7 @@
       else if (!mobileSheet && panel.parentElement === document.body && panel.__home.parent) panel.__home.parent.insertBefore(panel, panel.__home.next && panel.__home.next.parentElement === panel.__home.parent ? panel.__home.next : null);
     }
     panel.innerHTML = ufDetail(row);
+    if (uf === 'zz' && buZZ) { const head = panel.querySelector('.uf-detail-leader'); const html = buDetailMarkup(snapshot && snapshot.__zzOfficial); if (head) head.insertAdjacentHTML('afterend', html); else panel.insertAdjacentHTML('beforeend', html); }
     const governor = panel.querySelector('.uf-governor-detail');
     if (governor && GOVERNOR_UFS.includes(uf)) governor.innerHTML = governorDetail(uf, snapshot);
     panel.querySelectorAll('[data-first-turn-comparison]').forEach((node) => { node.hidden = !preferences.showComparison; });
@@ -601,7 +602,7 @@
     const ext = $('uf-exterior');
     if (ext && exterior) {
       const color = disputeMode === 'governor' ? { fill:'#35384d',value:null,state:'sem disputa estadual' } : mapColor(exterior, mapMode);
-      ext.innerHTML = '<button type="button" id="uf-exterior-trigger" class="uf-exterior-button ' + (disputeMode === 'governor' ? '' : mapMode === 'swing' ? swingClass(exterior) : 'leader-' + (exterior.leader || 'neutral')) + '" data-uf="zz" aria-pressed="' + (selectedUf === 'zz') + '" style="--uf-fill:' + color.fill + '"><strong>🌐 Exterior (ZZ)</strong><span>' + (disputeMode === 'governor' ? 'Sem disputa estadual' : color.value == null ? (color.state === 'sem dados' ? 'Sem dados' : color.state) : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : pct(color.value)) + '</span></button>';
+      ext.innerHTML = '<button type="button" id="uf-exterior-trigger" class="uf-exterior-button ' + (disputeMode === 'governor' ? '' : mapMode === 'swing' ? swingClass(exterior) : 'leader-' + (exterior.leader || 'neutral')) + '" data-uf="zz" aria-pressed="' + (selectedUf === 'zz') + '" style="--uf-fill:' + color.fill + '"><strong>🌐 Exterior (ZZ)</strong><span>' + (snapshot.pres.r2.zz && snapshot.pres.r2.zz.bu && disputeMode !== 'governor' ? '<i class="bu-tag">BUs ' + fmtNumber.format(snapshot.pres.r2.zz.st) + '/' + fmtNumber.format(snapshot.pres.r2.zz.ts) + '</i> ' : '') + (disputeMode === 'governor' ? 'Sem disputa estadual' : color.value == null ? (color.state === 'sem dados' ? 'Sem dados' : color.state) : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : pct(color.value)) + '</span></button>';
     }
     const chips = $('uf-chips');
     if (chips) chips.innerHTML = ['rn','pb','pe','al','se','es','rj','df'].map((uf) => '<button type="button" id="uf-chip-' + uf + '" class="uf-chip" data-uf="' + uf + '" aria-pressed="' + (selectedUf === uf) + '" aria-label="Selecionar ' + UF_NAMES[uf] + '">' + uf.toUpperCase() + '</button>').join('');
@@ -695,11 +696,82 @@
       if (countdown) countdown.innerHTML = remaining ? '<span class="clock-live-dot" aria-hidden="true"></span>' + [Math.floor(remaining / 3600), Math.floor((remaining % 3600) / 60), remaining % 60].map((n, i) => '<span class="clock-unit"><strong>' + String(n).padStart(2, '0') + '</strong><small>' + ['horas','minutos','segundos'][i] + '</small></span>').join('<i>:</i>') : '<span class="clock-live-dot" aria-hidden="true"></span>';
     }
   }
+
+  // ---- Exterior por boletins de urna (agregado no box por scripts/bu_exterior.py, branch "dados") ----
+  const DADOS_BASE = 'https://raw.githubusercontent.com/YuriVbs70/eleicoes-2026/dados/';
+  const BU_URL = DADOS_BASE + 'zz-bu.json';
+  const BU_REFRESH_MS = 60000;
+  let buZZ = null, buLastOk = 0, buFails = 0, buTimer = null;
+  function validBu(d) {
+    return !!d && typeof d === 'object' && Number.isFinite(Number(d.recebidas)) && Number(d.secoes_principais) > 0 && !!d.totais && ['lula', 'flavio', 'brancos', 'nulos'].every((k) => Number.isFinite(Number(d.totais[k])));
+  }
+  function buStamp(d) {
+    const m = String(d && d.gerado || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    return m ? { dg: m[3] + '/' + m[2] + '/' + m[1], hg: m[4] + ':' + m[5] + ':' + m[6], hm: m[4] + ':' + m[5] } : null;
+  }
+  function buSynthetic(d, official, first) {
+    const t = d.totais, a = Number(t.flavio) || 0, b = Number(t.lula) || 0, vv = a + b;
+    if (!vv || !Number(d.recebidas)) return null;
+    const stamp = buStamp(d) || {};
+    const base = (official && Array.isArray(official.cands) && official.cands.length ? official.cands : (first && first.cands || []).filter((c) => c.n === '13' || c.n === '22'));
+    const cands = base.map((c) => { const v = String(c.n) === '22' ? a : String(c.n) === '13' ? b : 0; return Object.assign({}, c, { v, p: Math.round(10000 * v / vv) / 100 }); }).sort((x, y) => y.v - x.v);
+    if (!cands.length) return null;
+    return { pst: Math.min(100, Math.round(10000 * Number(d.recebidas) / Number(d.secoes_principais)) / 100), st: Number(d.recebidas), ts: Number(d.secoes_principais), te: official && Number(official.te) || 0, comp: Number(t.comp) || 0, pc: 0, vv, vb: Number(t.brancos) || 0, vn: Number(t.nulos) || 0, dg: stamp.dg, hg: stamp.hg, tf: 'p', bu: true, cands };
+  }
+  function applyBuOverlay(snapshot) {
+    const r2 = snapshot && snapshot.pres && snapshot.pres.r2; if (!r2) return;
+    const cur = r2.zz;
+    if (cur && !cur.bu) snapshot.__zzOfficial = cur;
+    const official = snapshot.__zzOfficial || null;
+    if (official && Number(official.pst) > 0) { r2.zz = official; return; }  // após a totalização oficial começar, ela manda
+    let syn = null;
+    try { syn = buZZ ? buSynthetic(buZZ, official, snapshot.pres.r1 && snapshot.pres.r1.zz) : null; } catch (err) { console.warn('BU zz: falha ao montar parcial', err); }
+    if (syn) r2.zz = syn; else if (official) r2.zz = official;
+  }
+  function buDetailMarkup(official) {
+    if (!buZZ) return '';
+    const t = buZZ.totais, a = Number(t.flavio) || 0, b = Number(t.lula) || 0, vv = a + b, st = buStamp(buZZ);
+    const officialOn = official && Number(official.pst) > 0;
+    const top = (buZZ.paises || []).filter((p) => p.rec > 0).slice(0, 8).map((p) => { const s = p.lula + p.flavio; return '<li><span>' + safeText(p.pais) + ' <small>' + p.rec + '/' + p.tot + ' BUs</small></span><b class="bu-a">' + (s ? fmtPercent.format(100 * p.flavio / s) : '—') + '%</b><b class="bu-b">' + (s ? fmtPercent.format(100 * p.lula / s) : '—') + '%</b></li>'; }).join('');
+    return '<section class="bu-detail" id="bu-detail"><h4>Exterior · boletins de urna (parcial)</h4>' +
+      '<p class="bu-warn">Parcial por boletins de urna, não é a totalização oficial' + (officialOn ? ' · o painel já usa a totalização oficial do TSE' : '') + '.</p>' +
+      '<p class="bu-count"><strong>' + fmtNumber.format(Number(buZZ.recebidas) || 0) + '</strong> de ' + fmtNumber.format(Number(buZZ.secoes_principais) || 0) + ' BUs recebidos' + (st ? ' · coletado às ' + st.hm + ' (Brasília)' : '') + '</p>' +
+      (vv ? '<p class="bu-tot"><span class="bu-a">Flávio <b>' + fmtNumber.format(a) + '</b> (' + fmtPercent.format(100 * a / vv) + '%)</span> <span class="bu-b">Lula <b>' + fmtNumber.format(b) + '</b> (' + fmtPercent.format(100 * b / vv) + '%)</span></p><p class="bu-sub">Brancos ' + fmtNumber.format(Number(t.brancos) || 0) + ' · nulos ' + fmtNumber.format(Number(t.nulos) || 0) + '</p>' : '<p class="bu-sub">Nenhum BU com votos ainda.</p>') +
+      (top ? '<ol class="bu-paises"><li class="bu-h"><span>País</span><b>Flávio</b><b>Lula</b></li>' + top + '</ol>' : '') +
+      '<p class="bu-src">Fonte: arquivos públicos de BU do TSE (resultados.tse.jus.br, arquivo-urna 3221).</p></section>';
+  }
+  async function refreshBu() {
+    try {
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const kill = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+      const res = await fetch(BU_URL + '?t=' + Math.floor(Date.now() / 60000), { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      if (kill) clearTimeout(kill);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const d = await res.json();
+      if (!validBu(d)) throw new Error('formato inesperado');
+      const changed = !buZZ || buZZ.gerado !== d.gerado || buZZ.recebidas !== d.recebidas;
+      buZZ = d; buLastOk = Date.now(); buFails = 0;
+      const snap = typeof window !== 'undefined' ? window.currentElectionSnapshot : null;
+      if (changed && snap) { try { render(snap, false); } catch (err) { console.error('render (BU) falhou', err); } }
+    } catch (err) {
+      buFails += 1; console.warn('BU zz indisponível, mantendo último dado bom', err && err.message || err);
+    } finally {
+      if (typeof setTimeout !== 'function') return;
+      if (buTimer) clearTimeout(buTimer);
+      buTimer = setTimeout(refreshBu, Math.min(BU_REFRESH_MS * Math.pow(2, Math.min(buFails, 3)), 8 * 60000));
+    }
+  }
+  function officialView(snapshot) {
+    const z = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2.zz;
+    if (!z || !z.bu) return snapshot;
+    const r2 = Object.assign({}, snapshot.pres.r2, { zz: snapshot.__zzOfficial || Object.assign({}, z, { pst: 0, st: 0, vv: 0, vb: 0, vn: 0, comp: 0, cands: z.cands.map((c) => Object.assign({}, c, { v: 0, p: 0 })), bu: false }) });
+    return Object.assign({}, snapshot, { pres: Object.assign({}, snapshot.pres, { r2 }) });
+  }
   let pollState = null;
   function latestTseRecord(snapshot) {
     const r2 = snapshot && snapshot.pres && snapshot.pres.r2 || {};
     let best = null, bestTime = -1;
-    for (const uf of PRESIDENT_UFS) { const r = r2[uf]; const t = r ? resultTime(r) : 0; if (r && t > bestTime) { best = r; bestTime = t; } }
+    for (const uf of PRESIDENT_UFS) { const r = r2[uf] && r2[uf].bu ? (snapshot.__zzOfficial || null) : r2[uf]; const t = r ? resultTime(r) : 0; if (r && t > bestTime) { best = r; bestTime = t; } }
     return best;
   }
   function tseStamp(r) {
@@ -739,7 +811,7 @@
         '<span class="tc-now"><small>agora</small> ' + (counting ? '<b>' + pct(p2) + '</b> <em>' + votesText(v2) + '</em>' : '<b class="tc-wait">aguardando</b>') + '</span>' +
         '<span class="tc-delta' + (delta > 0 ? ' up' : delta < 0 ? ' down' : '') + '">' + (delta == null ? '—' : (delta > 0 ? '▲ +' : delta < 0 ? '▼ −' : '= ') + fmtPercent.format(Math.abs(delta)) + ' p.p.') + '</span></div>';
     };
-    return '<div class="turn-compare" id="turn-compare" data-scope="' + key + '"><div class="tc-head"><strong>2º turno × 1º turno</strong><span class="tc-scope">' + (key === 'br' ? 'Brasil · % dos votos válidos' : safeText(UF_NAMES[key]) + ' <button type="button" class="tc-reset" data-tc-reset>Brasil ✕</button>') + '</span></div>' + row('13', 'Lula', 'lula') + row('22', 'Flávio', 'flavio') + '</div>';
+    return '<div class="turn-compare" id="turn-compare" data-scope="' + key + '"><div class="tc-head"><strong>2º turno × 1º turno</strong><span class="tc-scope">' + (key === 'br' ? 'Brasil · % dos votos válidos' : safeText(UF_NAMES[key]) + (r2 && r2.bu ? ' <em class="tc-bu" title="Parcial por boletins de urna, não é a totalização oficial"><span class="tc-bu-l">parcial por BUs · não oficial</span><span class="tc-bu-s">BUs parciais</span></em>' : '') + ' <button type="button" class="tc-reset" data-tc-reset>Brasil ✕</button>') + '</span></div>' + row('13', 'Lula', 'lula') + row('22', 'Flávio', 'flavio') + '</div>';
   }
   function refreshTurnCompare() {
     const node = typeof document !== 'undefined' ? $('turn-compare') : null;
@@ -748,6 +820,7 @@
   }
   function render(snapshot, chanceStale) {
     if (!snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2 || !snapshot.gov || !snapshot.gov.r2) throw new Error('Formato de resultados inválido');
+    applyBuOverlay(snapshot);
     if (typeof window !== 'undefined') window.currentElectionSnapshot = snapshot;
     liveSnapshot = snapshot;
     const pres1 = snapshot.pres.r1.br;
@@ -756,10 +829,11 @@
     $('pres-cards').innerHTML = tseStripMarkup() + scoreboard.replace(/<\/section>$/, turnCompareMarkup(snapshot, selectedUf) + '</section>');
     updateTseStrip();
     animateScoreTotal();
-    updateChance(snapshot, !!chanceStale);
-    $('pres-projection').innerHTML = projectionMarkup(snapshot);
+    const official = officialView(snapshot);  // chance/projeção/regiões só com totalização oficial (BUs parciais ficam fora)
+    updateChance(official, !!chanceStale);
+    $('pres-projection').innerHTML = projectionMarkup(official);
     renderUfs(snapshot);
-    $('pres-regions').innerHTML = Object.entries(REGION_UFS).map(([name, ufs]) => regionalCard(name, ufs, snapshot)).join('');
+    $('pres-regions').innerHTML = Object.entries(REGION_UFS).map(([name, ufs]) => regionalCard(name, ufs, official)).join('');
     renderHistory();
     $('gov-regions').innerHTML = GOVERNOR_UFS.map((uf) => governorCard(uf, snapshot.gov.r1 && snapshot.gov.r1[uf], snapshot.gov.r2[uf], isAwaiting(snapshot))).join('');
     const firstTurn = snapshot.pres.r1.br;
@@ -835,8 +909,14 @@
       let reserve = null;
       if (settled.some((x) => x.error)) {
         try {
-          const response = await withTimeout(fetcher('data/snapshot.json?t=' + encodeURIComponent(stamp), { cache: 'no-store' }), timeoutMs, timers);
-          if (response && response.ok) reserve = await withTimeout(response.json(), timeoutMs, timers);
+          // reserva 1: snapshot oficial gravado pelo vigia do box (branch dados, CDN do GitHub); reserva 2: snapshot do site
+          for (const src of [DADOS_BASE + 'snapshot.json?t=' + Math.floor(stamp / 60000), 'data/snapshot.json?t=' + encodeURIComponent(stamp)]) {
+            try {
+              const response = await withTimeout(fetcher(src, { cache: 'no-store' }), timeoutMs, timers);
+              const cand = response && response.ok ? await withTimeout(response.json(), timeoutMs, timers) : null;
+              if (cand && cand.pres && cand.pres.r2 && cand.gov && cand.gov.r2 && (!reserve || (resultTime(cand.pres.r2.br) > resultTime(reserve.pres.r2.br)))) reserve = cand;
+            } catch (_) { /* tenta a próxima reserva */ }
+          }
           if (!reserve || !reserve.pres || !reserve.pres.r2 || !reserve.gov || !reserve.gov.r2) reserve = null;
         } catch (_) { reserve = null; }
       }
@@ -929,10 +1009,16 @@
   }
   async function loadOfficialHistory(fetcher) {
     try {
-      const response = await fetcher('data/serie.json', { cache: 'no-store' });
-      if (!response || !response.ok) return [];
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
+      let best = [];
+      for (const src of [typeof DADOS_BASE === 'string' ? DADOS_BASE + 'serie.json?t=' + Math.floor(Date.now() / 60000) : null, 'data/serie.json']) {
+        if (!src) continue;
+        try {
+          const response = await fetcher(src, { cache: 'no-store' });
+          const data = response && response.ok ? await response.json() : null;
+          if (Array.isArray(data) && data.length > best.length) best = data;
+        } catch (_) { /* tenta a próxima fonte */ }
+      }
+      return best;
     } catch (_) { return []; }
   }
   function recordLiveSnapshot(snapshot, previousPst) {
@@ -1018,7 +1104,7 @@
       electionModel = model;
       render(snapshot);
       const poller = startPolling(snapshot);
-      pollState = poller.state;
+      pollState = poller.state; if (typeof fetch === 'function' && typeof setTimeout === 'function' && typeof window !== 'undefined' && window.location && /^https?:/.test(window.location.protocol)) refreshBu();
       document.addEventListener('click', (event) => { if (event.target.closest && event.target.closest('[data-tc-reset]')) closeUfDetail(false); });
       const timer = typeof setInterval === 'function' ? setInterval(() => {
         if (typeof document !== 'undefined' && $('pres-update')) {

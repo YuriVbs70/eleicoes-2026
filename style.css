@@ -540,3 +540,26 @@ html[data-theme="light"] .tc-delta.down { color:#c53f59; }
   body > .uf-detail[data-open="true"] { display:block !important; position:fixed; left:8px; right:8px; bottom:calc(64px + env(safe-area-inset-bottom, 0px)); z-index:80; max-height:min(55vh, 460px); overflow:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; margin:0; padding:14px; border-radius:18px; border:1px solid rgb(255 255 255 / 14%); box-shadow:0 -12px 40px rgb(0 0 0 / 55%); background:rgb(12 16 42 / 97%); color:var(--text); }
   html[data-theme="light"] body > .uf-detail[data-open="true"] { background:rgb(248 249 255 / 98%); border-color:#d5d9ea; }
 }
+/* Rodada 39 (Grok): Exterior por boletins de urna */
+.bu-detail { margin:10px 0 12px; padding:12px; border-radius:14px; border:1px solid rgb(255 212 121 / 35%); background:rgb(255 212 121 / 7%); }
+.bu-detail h4 { margin:0 0 4px; font-size:.95rem; }
+.bu-detail p { margin:4px 0; font-size:.85rem; }
+.bu-warn { color:#ffd479; font-weight:600; }
+.bu-tot { display:flex; gap:14px; flex-wrap:wrap; font-size:.95rem !important; }
+.bu-a { color:#31c1e8; } .bu-b { color:#ff6c78; }
+.bu-sub, .bu-src { opacity:.75; font-size:.75rem !important; }
+.bu-paises { list-style:none; margin:8px 0 4px; padding:0; font-size:.8rem; }
+.bu-paises li { display:grid; grid-template-columns:1fr 56px 56px; gap:6px; padding:3px 0; border-top:1px solid rgb(255 255 255 / 8%); }
+.bu-paises li b { text-align:right; font-variant-numeric:tabular-nums; }
+.bu-paises li small { opacity:.65; }
+.bu-paises .bu-h { opacity:.7; font-size:.72rem; border-top:0; }
+.bu-tag { font-style:normal; font-size:.7em; opacity:.85; padding:1px 5px; border-radius:6px; background:rgb(255 212 121 / 18%); color:#ffd479; margin-right:4px; }
+.tc-bu { font-style:normal; font-size:.72em; color:#ffd479; margin-left:4px; }
+html[data-theme="light"] .bu-warn, html[data-theme="light"] .tc-bu, html[data-theme="light"] .bu-tag { color:#8a5a00; }
+html[data-theme="light"] .bu-detail { background:#fff6df; border-color:#e9c97a; }
+html[data-theme="light"] .bu-paises li { border-top-color:#e3e6f0; }
+@media (max-width:1023px) { .tc-bu { display:block; margin:0; } }
+.tc-bu-s { display:none; }
+.tc-head strong, .tc-reset { white-space:nowrap; }
+@media (max-width:1023px) { .tc-bu { display:inline; margin-left:4px; } .tc-bu-l { display:none; } .tc-bu-s { display:inline; } .tc-head { flex-wrap:nowrap; gap:6px; } .tc-scope { white-space:nowrap; } }
+@media (max-width:1023px) { body > .uf-detail[data-open="true"] { max-height:min(46svh, 460px); } }
