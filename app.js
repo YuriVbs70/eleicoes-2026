@@ -124,6 +124,62 @@
     setTimeout(() => showAviso('Chance de Flávio passa de 90%'), 4000);
   }
 
+  // Gráfico da chance ao longo da noite. Fonte: histórico do box no feed (todo visitante vê a noite inteira);
+  // sem ele, o histórico desta aba. Pontos: [unix s, chance Lula %, % seções apuradas no Brasil].
+  let puHist = null; const clientHist = [];
+  function noteClientChance(pt) {
+    if (!Number.isFinite(pt)) return;
+    const t = Math.floor(Date.now() / 1000), last = clientHist[clientHist.length - 1];
+    if (last && t - last[0] < 60 && Math.abs(last[1] - pt) < 0.5) return;
+    clientHist.push([t, Math.round(pt * 10) / 10, 0]); if (clientHist.length > 300) clientHist.shift();
+  }
+  function chanceHistory(result) {
+    const src = Array.isArray(puHist) && puHist.length ? puHist : clientHist;
+    let pts = src.filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])).map((p) => [p[0], Math.max(0, Math.min(100, p[1])), Number.isFinite(p[2]) ? p[2] : 0]);
+    pts.sort((a, b) => a[0] - b[0]);
+    // A partir das 17h (Brasília) mostra só a noite da apuração; antes disso, os poucos pontos que houver.
+    const d17 = sparkStart(); const after = pts.filter((p) => p[0] >= d17);
+    if (after.length >= 2) pts = after;
+    const now = Math.floor(Date.now() / 1000);
+    if (result && Number.isFinite(result.pt) && (!pts.length || now - pts[pts.length - 1][0] > 60)) pts.push([now, Math.round(result.pt * 10) / 10, pts.length ? pts[pts.length - 1][2] : 0]);
+    return pts;
+  }
+  function sparkStart() {
+    const now = new Date(); const ymd = now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    return Math.floor(Date.parse(ymd + 'T17:00:00-03:00') / 1000);
+  }
+  function sparkTime(t) { return new Date(t * 1000).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }); }
+  function sparkMarkup(pts) {
+    if (!pts || !pts.length) return '';
+    const W = 300, H = 40, n = pts.length;
+    const t0 = pts[0][0], t1 = pts[n - 1][0], span = Math.max(1, t1 - t0);
+    const xy = (p, flip) => { const x = n === 1 ? 0 : (p[0] - t0) / span * W; const v = flip ? 100 - p[1] : p[1]; return [x, H - v / 100 * H]; };
+    const path = (flip) => { const a = pts.map((p) => xy(p, flip)); if (n === 1) a.push([W, a[0][1]]); return a.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(''); };
+    const last = pts[n - 1];
+    const note = t1 < sparkStart() ? 'linha desde ' + sparkTime(t0) + ' · apuração às 17h' : 'desde ' + sparkTime(t0);
+    const data = pts.map((p) => p[0] + ',' + p[1]).join(';');
+    return '<div class="chance-spark" data-spark="' + data + '" data-t0="' + t0 + '" data-t1="' + t1 + '">' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Chance ao longo da noite: agora Lula ' + Math.round(last[1]) + '%, Flávio ' + Math.round(100 - last[1]) + '%">' +
+      '<line class="spark-mid" x1="0" y1="' + H / 2 + '" x2="' + W + '" y2="' + H / 2 + '"/>' +
+      '<path class="spark-flavio" d="' + path(true) + '"/><path class="spark-lula" d="' + path(false) + '"/>' +
+      '<line class="spark-cursor" x1="0" y1="0" x2="0" y2="' + H + '" hidden/></svg>' +
+      '<span class="spark-tip" aria-live="polite">' + note + '</span></div>';
+  }
+  function sparkPoint(el, clientX) {
+    const r = el.getBoundingClientRect(); const pts = (el.dataset.spark || '').split(';').map((s) => s.split(',').map(Number)).filter((p) => p.length === 2);
+    if (!pts.length || !r.width) return;
+    const t0 = Number(el.dataset.t0), t1 = Number(el.dataset.t1); const frac = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    const t = t0 + frac * Math.max(1, t1 - t0); let best = pts[0];
+    for (const p of pts) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
+    const tip = el.querySelector('.spark-tip'), cur = el.querySelector('.spark-cursor');
+    if (tip) tip.textContent = sparkTime(best[0]) + ' · Lula ' + best[1].toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% · Flávio ' + (100 - best[1]).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+    if (cur) { const x = pts.length === 1 ? 0 : (best[0] - t0) / Math.max(1, t1 - t0) * 300; cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.removeAttribute('hidden'); }
+  }
+  if (typeof document !== 'undefined') {
+    const onSpark = (e) => { const el = e.target && e.target.closest && e.target.closest('.chance-spark'); if (el) sparkPoint(el, e.clientX); };
+    document.addEventListener('pointermove', onSpark); document.addEventListener('pointerdown', onSpark);
+  }
+
   function chanceMarkup(result, timestamp, stale) {
     if (!result || !result.available || !Number.isFinite(result.pt) || !Number.isFinite(result.opositor)) {
       return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO</p><h2>Chance de vitória</h2></div></div><p class="muted">' + safeText(result && result.reason || 'Chance de vitória calculada no navegador com o modelo local.') + '</p></section>';
@@ -143,6 +199,7 @@
     return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO · 5.000 SIMULAÇÕES</p><h2>Chance de vitória</h2></div><span class="chance-status">' + (stale ? 'desatualizada' : 'atualizada') + '</span></div>' +
       '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' +
       '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" data-tw-w="ch-wa" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" data-tw-w="ch-wb" style="width:' + pt + '%"></span></div>' +
+      sparkMarkup(chanceHistory(result)) +
       '<p class="chance-time">' + (result.tie ? 'Empate nas simulações' : 'Probabilidade de vitória · não é percentual de votos') + ' · atualizado às ' + when + (stale ? ' · último cálculo válido' : '') + '</p>' +
       '<button class="chance-mobile-trigger" type="button" aria-controls="chance-method">Chance · Flávio ' + flavioRounded + '% · ' + ptRounded + '% Lula · estimativa, não oficial</button>' +
       '<div class="chance-summary"><p>Base bilateral do 1º turno; pesos pelos votos válidos.</p><p>Incerteza calibrada com dados de 2022.</p></div>' +
@@ -159,7 +216,7 @@
         const result = globalThis.EleicoesModelo.simulate(electionModel, snapshot, { simulations: 5000, bu: puChanceBu ? puEvid : null });
         if (version !== chanceVersion) return;
         if (result && result.available) {
-          lastChance = { result, timestamp: Date.now() };
+          lastChance = { result, timestamp: Date.now() }; noteClientChance(result.pt);
           const aviso = avisoChance(avisoChanceState, result.pt);
           avisoChanceState = aviso.state; showAviso(aviso.msg);
         }
@@ -900,10 +957,13 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
       const previousEvid = JSON.stringify(puEvid), previousChanceBu = puChanceBu;
+      const previousHist = puHist && puHist.length ? puHist[puHist.length - 1][0] + ':' + puHist.length : '';
+      puHist = d && Array.isArray(d.hist) ? d.hist.slice(-300) : null;
+      const histChanged = previousHist !== (puHist && puHist.length ? puHist[puHist.length - 1][0] + ':' + puHist.length : '');
       puEvid = d && d.evid || null;
       puChanceBu = !(d && d.chance_bu === false);
       renderPu(d); puFails = 0;
-      if ((previousEvid !== JSON.stringify(puEvid) || previousChanceBu !== puChanceBu) && typeof window !== 'undefined' && window.currentElectionSnapshot) {
+      if ((previousEvid !== JSON.stringify(puEvid) || previousChanceBu !== puChanceBu || histChanged) && typeof window !== 'undefined' && window.currentElectionSnapshot) {
         try { updateChance(officialView(window.currentElectionSnapshot), false); } catch (_) {}
       }
     } catch (err) { puFails += 1; console.warn('projeção por urna indisponível', err && err.message || err); }
@@ -1377,5 +1437,5 @@
     schedule();
   }
   if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => { setupTabs(); setupUfControls(); setupPreferences(); setupDepthEffects(); setupAvisoTest(); loadInitial(); });
-  if (typeof module !== 'undefined' && module.exports) module.exports = { avisoLider, avisoChance, render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, puMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { sparkMarkup, avisoLider, avisoChance, render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, puMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
 }());

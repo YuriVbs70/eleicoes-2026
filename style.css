@@ -642,3 +642,20 @@ html[data-theme="light"] .urna-bar { background:#e3e5f2; }
 @keyframes aviso-pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.03); box-shadow:0 0 0 6px color-mix(in srgb, var(--aviso-color) 35%, transparent), 0 8px 24px rgb(0 0 0 / 20%); } }
 .aviso-toast span { font-weight:700; }
 @media(prefers-reduced-motion:reduce) { .aviso-toast { animation:none; transition:none; } }
+
+/* Gráfico da chance ao longo da noite (dentro do card, abaixo da barra) */
+.chance-spark { position:relative; margin:2px 0 4px; }
+.chance-spark svg { display:block; width:100%; height:26px; overflow:visible; touch-action:pan-y; cursor:crosshair; }
+.chance-spark path { fill:none; stroke-width:1.6; vector-effect:non-scaling-stroke; stroke-linejoin:round; }
+.chance-spark .spark-lula { stroke:var(--lula); }
+.chance-spark .spark-flavio { stroke:var(--flavio); opacity:.85; }
+.chance-spark .spark-mid { stroke:var(--line); stroke-dasharray:2 3; vector-effect:non-scaling-stroke; }
+.chance-spark .spark-cursor { stroke:var(--muted); vector-effect:non-scaling-stroke; }
+.chance-spark .spark-tip { display:block; color:var(--muted); font-size:.58rem; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media(max-width:700px) { #pres-chance .chance-panel > .chance-spark { flex:0 0 100%; margin:0 0 3px; } .chance-spark svg { height:20px; } }
+@media (min-width:1024px) {
+  #pres-chance .chance-panel { position:relative; }
+  #pres-chance .chance-panel > .chance-spark { position:absolute; right:13px; top:47px; width:min(40%,220px); margin:0; }
+  #pres-chance .chance-spark svg { height:18px; }
+  #pres-chance .chance-spark .spark-tip { text-align:right; font-size:.54rem; margin-top:1px; }
+}
