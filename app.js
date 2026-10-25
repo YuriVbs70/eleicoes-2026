@@ -38,10 +38,11 @@
   let electionModel = null;
   let chanceVersion = 0;
   let lastChance = null;
+  let lastChanceStale = false;
 
   function chanceMarkup(result, timestamp, stale) {
     if (!result || !result.available || !Number.isFinite(result.pt) || !Number.isFinite(result.opositor)) {
-      return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO</p><h2>Chance de vitória</h2></div></div><p class="muted">' + safeText(result && result.reason || 'Carregando parâmetros estatísticos locais…') + '</p></section>';
+      return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO</p><h2>Chance de vitória</h2></div></div><p class="muted">' + safeText(result && result.reason || 'Chance de vitória calculada no navegador com o modelo local.') + '</p></section>';
     }
     const pt = Math.max(0, Math.min(100, result.pt));
     const flavio = 100 - pt;
@@ -49,8 +50,8 @@
     const flavioRounded = 100 - ptRounded;
     const when = timestamp ? new Date(timestamp).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
     return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO · 5.000 SIMULAÇÕES</p><h2>Chance de vitória</h2></div><span class="chance-status">' + (stale ? 'desatualizada' : 'atualizada') + '</span></div>' +
-      '<p class="chance-label">estimativa estatística, não oficial</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong>' + ptRounded + '%</strong></span></div>' +
-      '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" style="width:' + pt + '%"></span></div>' +
+      '<p class="chance-label">estimativa estatística, não oficial</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' +
+      '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" data-tw-w="ch-wa" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" data-tw-w="ch-wb" style="width:' + pt + '%"></span></div>' +
       '<p class="chance-time">' + (result.tie ? 'Empate nas simulações' : 'Probabilidade de vitória · não é percentual de votos') + ' · atualizado às ' + when + (stale ? ' · último cálculo válido' : '') + '</p>' +
       '<button class="chance-mobile-trigger" type="button" aria-controls="chance-method">Chance · Flávio ' + flavioRounded + '% · ' + ptRounded + '% Lula · estimativa, não oficial</button>' +
       '<div class="chance-summary"><p>Base bilateral do 1º turno; pesos pelos votos válidos.</p><p>Incerteza calibrada com dados de 2022.</p></div>' +
@@ -60,16 +61,19 @@
     const target = typeof document !== 'undefined' ? $('pres-chance') : null;
     if (!target || !electionModel || !globalThis.EleicoesModelo) return;
     const version = ++chanceVersion;
-    target.innerHTML = chanceMarkup(lastChance && lastChance.result, lastChance && lastChance.timestamp, true);
+    if (!lastChance) { target.innerHTML = chanceMarkup(null, null, false); }  // com cálculo anterior, mantém o painel como está até o novo ficar pronto
     setTimeout(() => {
       if (version !== chanceVersion) return;
       try {
         const result = globalThis.EleicoesModelo.simulate(electionModel, snapshot, { simulations: 5000 });
         if (version !== chanceVersion) return;
         if (result && result.available) lastChance = { result, timestamp: Date.now() };
-        target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, !!stale || !result || !result.available);
+        lastChanceStale = !!stale || !result || !result.available;
+        target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, lastChanceStale);
+        twApply(target);
       } catch (_) {
         target.innerHTML = chanceMarkup(lastChance && lastChance.result, lastChance && lastChance.timestamp, true);
+        twApply(target);
       }
     }, 0);
   }
@@ -157,54 +161,109 @@
       '<div class="comparison-head">' + (photo ? '<img class="candidate-photo" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/' + safeText(photo) + '.jpeg" alt="" loading="lazy" onerror="this.hidden=true">' : '<span class="candidate-photo photo-empty" aria-hidden="true">' + config.n + '</span>') +
       '<div><p class="candidate-id">' + config.n + ' · ' + safeText((c2 && c2.sg) || (c1 && c1.sg) || '—') + '</p><h3>' + config.name + '</h3></div><div class="progress-ring" style="--progress:' + progress + '%" role="img" aria-label="' + pct(progress) + ' das seções totalizadas"><span>' + pct(progress) + '</span><small>apurado</small></div></div>' +
       '<div class="comparison-now"><strong>' + (awaiting ? pct(firstPct) : pct(secondPct)) + '</strong><span>' + (awaiting ? '1º turno' : displayOrDash(v2, (n) => fmtNumber.format(n)) + ' votos agora') + '</span></div>' +
-      '<div class="comparison-turns"><div><span>1º turno</span><strong>' + pct(firstPct) + '</strong><small>' + displayOrDash(v1, (n) => fmtNumber.format(n)) + ' votos</small></div><div><span>2º turno</span><strong>' + (awaiting ? 'aguardando' : pct(secondPct)) + '</strong><small>' + (awaiting ? '—' : displayOrDash(v2, (n) => fmtNumber.format(n)) + ' votos') + '</small></div></div>' +
+      '<div class="comparison-turns"><div><span>1º turno</span><strong>' + pct(firstPct) + '</strong><small>' + displayOrDash(v1, (n) => fmtNumber.format(n)) + ' votos</small></div><div><span>2º turno</span><strong>' + (awaiting ? 'sem apuração ainda' : pct(secondPct)) + '</strong><small>' + (awaiting ? '0 votos' : displayOrDash(v2, (n) => fmtNumber.format(n)) + ' votos') + '</small></div></div>' +
       (awaiting ? '' : '<p class="comparison-delta">Variação vs. base bilateral: <strong>' + displayOrDash(stats && stats.delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</strong><br><span>vs. percentual bruto do 1º turno: ' + displayOrDash(stats && stats.rawDelta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</span> · votos: <strong>' + (stats && stats.votesDelta != null ? sign + difference : 'Indisponível') + '</strong></p>') +
-      '<div class="turn-bars" aria-label="Percentuais de votos válidos: primeiro e segundo turno"><div class="turn-bar-row"><span>1º</span><div class="turn-bar"><i style="width:' + (Number.isFinite(firstPct) ? Math.max(0, Math.min(100, firstPct)) : 0) + '%"></i></div><b>' + pct(firstPct) + '</b></div><div class="turn-bar-row"><span>2º</span><div class="turn-bar"><i style="width:' + barA + '%"></i></div><b>' + (awaiting ? 'aguardando' : pct(secondPct)) + '</b></div></div>' +
+      '<div class="turn-bars" aria-label="Percentuais de votos válidos: primeiro e segundo turno"><div class="turn-bar-row"><span>1º</span><div class="turn-bar"><i style="width:' + (Number.isFinite(firstPct) ? Math.max(0, Math.min(100, firstPct)) : 0) + '%"></i></div><b>' + pct(firstPct) + '</b></div><div class="turn-bar-row"><span>2º</span><div class="turn-bar"><i style="width:' + barA + '%"></i></div><b>' + (awaiting ? '0 votos' : pct(secondPct)) + '</b></div></div>' +
       '<p class="bilateral-base">Base bilateral no 1º turno: <strong>' + displayOrDash(stats && stats.bilateral, pct) + '</strong><br><span>entre os dois finalistas; outros candidatos: ' + displayOrDash(stats && stats.other, pct) + '</span></p>' +
       '</article>';
   }
-  function presidentialComparison(firstResult, secondResult) {
-    const a = candidateByNumber(secondResult, '22'), b = candidateByNumber(secondResult, '13');
-    const awaiting = isAwaiting({ pres: { r2: { br: secondResult } } });
+  // partial (opcional): { result, label, short, remaining } — melhor número real disponível enquanto o Brasil oficial está zerado
+  // (antes das 17h: Exterior pelos boletins de urna). Sem partial nem apuração: zeros reais do 2º turno (nunca números do 1º turno), rotulados.
+  function presidentialComparison(firstResult, secondResult, partial) {
+    const awaitingBr = isAwaiting({ pres: { r2: { br: secondResult } } });
+    const usePartial = awaitingBr && partial && partial.result;
+    const reference = awaitingBr && !usePartial;
+    const src = usePartial ? partial.result : secondResult;
+    const a = candidateByNumber(src, '22'), b = candidateByNumber(src, '13');
     const value = (v) => v != null && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null;
-    const votesA = value(a && a.v), votesB = value(b && b.v), pctA = value(a && a.p), pctB = value(b && b.p);
-    const progress = value(secondResult && secondResult.pst);
-    const vv = value(secondResult && secondResult.vv), vb = value(secondResult && secondResult.vb), vn = value(secondResult && secondResult.vn);
-    const comp = value(secondResult && secondResult.comp), eligible = value(secondResult && secondResult.te);
+    const r1a = candidateByNumber(firstResult, '22'), r1b = candidateByNumber(firstResult, '13');
+    const votesA = value(a && a.v), votesB = value(b && b.v);
+    const pctA = value(a && a.p), pctB = value(b && b.p);
+    const progress = value(src && src.pst);
+    const vv = value(src && src.vv), vb = value(src && src.vb), vn = value(src && src.vn);
+    const comp = value(src && src.comp), eligible = value(src && src.te);
     const componentTotal = vv != null && vb != null && vn != null ? vv + vb + vn : null;
-    const total = componentTotal != null && comp != null && componentTotal === comp ? componentTotal : null;
+    const total = usePartial ? componentTotal : componentTotal != null && comp != null && componentTotal === comp ? componentTotal : null;
     const remaining = comp != null && eligible != null && eligible >= comp ? eligible - comp : null;
     const remainingMillions = remaining == null ? 'Indisponível' : (remaining < 100000 ? (remaining === 0 ? '0,0' : (remaining / 1000000).toFixed(6).replace(/0+$/, '').replace('.', ',')) : new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(remaining / 1000000)) + ' milhões';
     const splitTotal = pctA != null && pctB != null ? pctA + pctB : null;
     const lulaWidth = splitTotal > 0 ? pctB * 100 / splitTotal : 0;
     const diffVotes = votesA != null && votesB != null ? votesA - votesB : null;
     const diffPoints = pctA != null && pctB != null ? pctA - pctB : null;
-    const candidate = (number, name, party, person, candidate, votes, share, color) => {
+    const candidate = (number, name, party, person, candidate, votes, share, color, key) => {
       const photo = (candidate && candidate.sq) || (person && person.sq);
-      return '<div class="score-candidate score-' + color + '">' + (photo ? '<img class="candidate-photo" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/' + safeText(photo) + '.jpeg" alt="" onerror="this.hidden=true">' : '<span class="candidate-photo photo-empty" aria-hidden="true">' + number + '</span>') + '<div class="score-identity"><p class="candidate-id">' + number + ' · ' + party + '</p><h3>' + name + '</h3></div><strong class="score-percent">' + (awaiting ? '—' : pct(share)) + '</strong><span class="score-votes">' + (awaiting ? 'aguardando' : displayOrDash(votes, (n) => fmtNumber.format(n)) + ' votos') + '</span></div>';
+      const pctHtml = reference ? '<span class="tw"' + twAttr('sb-v0' + key, 0, 'int') + '>0</span> <small>votos</small>' : share == null ? 'Indisponível' : '<span class="tw"' + twAttr('sb-p' + key, share, 'pct') + '>' + pct(share) + '</span>';
+      const votesHtml = reference ? '2º turno · sem apuração ainda' : votes == null ? 'Indisponível' : '<span class="tw"' + twAttr('sb-v' + key, votes, 'int') + '>' + fmtNumber.format(votes) + '</span> votos';
+      return '<div class="score-candidate score-' + color + '">' + (photo ? '<img class="candidate-photo" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/' + safeText(photo) + '.jpeg" alt="" onerror="this.hidden=true">' : '<span class="candidate-photo photo-empty" aria-hidden="true">' + number + '</span>') + '<div class="score-identity"><p class="candidate-id">' + number + ' · ' + party + '</p><h3>' + name + '</h3></div><strong class="score-percent">' + pctHtml + '</strong><span class="score-votes">' + votesHtml + '</span></div>';
     };
-    return '<section class="pres-scoreboard" aria-label="Placar presidencial do segundo turno"><div class="score-candidates">' + candidate('13', 'Lula', 'PT', candidateByNumber(firstResult, '13'), b, votesB, pctB, 'lula') + candidate('22', 'Flávio Bolsonaro', 'PL', candidateByNumber(firstResult, '22'), a, votesA, pctA, 'flavio') + '</div><div class="score-split" role="img" aria-label="Barra de votos válidos do segundo turno"><span class="score-split-lula" style="width:' + lulaWidth + '%"></span><span class="score-split-flavio" style="width:' + (splitTotal > 0 ? 100 - lulaWidth : 0) + '%"></span><i aria-hidden="true"></i></div><div class="score-summary"><span><strong>' + (awaiting ? 'Aguardando apuração' : displayOrDash(progress, pct) + ' apurado') + '</strong></span><span>Total apurado <strong class="score-total" data-total="' + (total == null ? '' : total) + '">' + displayOrDash(total, (n) => fmtNumber.format(n)) + '</strong> votos</span><span>Faltam <strong>' + remainingMillions + '</strong></span></div><div class="score-difference"><span>Diferença</span><strong>' + (awaiting ? '—' : diffVotes == null ? 'Indisponível' : fmtNumber.format(Math.abs(diffVotes)) + ' votos · ' + (diffVotes > 0 ? 'Flávio' : diffVotes < 0 ? 'Lula' : 'empate')) + '</strong><small>' + (awaiting ? '' : diffPoints == null ? 'Percentual indisponível' : fmtPercent.format(Math.abs(diffPoints)) + ' p.p. nos votos válidos') + '</small></div></section>';
+    const status = usePartial
+      ? '<span class="score-source"><strong>' + safeText(partial.label) + '</strong>' + (partial.detail ? ' · ' + partial.detail : '') + '</span>'
+      : reference ? '<span class="score-source"><strong>Sem apuração ainda</strong> · totalização do TSE a partir das 17h</span>'
+      : '<span><strong>' + (progress == null ? 'Indisponível' : '<span class="tw"' + twAttr('sb-pst', progress, 'pct') + '>' + pct(progress) + '</span>') + ' apurado</strong></span>';
+    const totalHtml = total == null ? 'Indisponível' : '<span class="tw"' + twAttr('sb-total', total, 'int') + '>' + fmtNumber.format(total) + '</span>';
+    const remainingHtml = usePartial ? (partial.remaining || remainingMillions) : remainingMillions;
+    const totalBlock = '<span>Total apurado <strong class="score-total" data-total="' + (total == null ? '' : total) + '">' + totalHtml + '</strong> votos</span><span>Faltam <strong>' + remainingHtml + '</strong></span>';
+    const diffHtml = diffVotes == null ? 'Indisponível' : '<span class="tw"' + twAttr('sb-diff', Math.abs(diffVotes), 'int') + '>' + fmtNumber.format(Math.abs(diffVotes)) + '</span> votos · ' + (diffVotes > 0 ? 'Flávio' : diffVotes < 0 ? 'Lula' : 'empate');
+    const diffSmall = diffPoints == null ? 'Percentual indisponível' : '<span class="tw"' + twAttr('sb-diffp', Math.abs(diffPoints), 'pp') + '>' + fmtPercent.format(Math.abs(diffPoints)) + '</span> p.p. nos votos válidos' + (usePartial ? ' · ' + safeText(partial.short || 'parcial') : '');
+    return '<section class="pres-scoreboard' + (usePartial ? ' is-partial' : reference ? ' is-reference' : '') + '" aria-label="Placar presidencial do segundo turno"><div class="score-candidates">' + candidate('13', 'Lula', 'PT', r1b, b, votesB, pctB, 'lula', 'b') + candidate('22', 'Flávio Bolsonaro', 'PL', r1a, a, votesA, pctA, 'flavio', 'a') + '</div><div class="score-split" role="img" aria-label="Barra de votos válidos do segundo turno"><span class="score-split-lula" style="width:' + lulaWidth + '%" data-tw-w="sb-wl"></span><span class="score-split-flavio" style="width:' + (splitTotal > 0 ? 100 - lulaWidth : 0) + '%" data-tw-w="sb-wf"></span><i aria-hidden="true"></i></div><div class="score-summary">' + status + totalBlock + '</div><div class="score-difference"><span>Diferença</span><strong>' + diffHtml + '</strong><small>' + diffSmall + '</small></div></section>';
   }
-  let scoreAnimation = 0;
-  let lastScoreTotal = null;
-  function animateScoreTotal() {
-    const target = $('pres-cards') && $('pres-cards').querySelector ? $('pres-cards').querySelector('.score-total') : null;
-    if (!target) return;
-    const end = Number(target.getAttribute('data-total'));
-    if (!Number.isFinite(end)) return;
-    const start = lastScoreTotal == null ? 0 : lastScoreTotal;
-    lastScoreTotal = end;
-    const token = ++scoreAnimation;
-    if (start === end || typeof requestAnimationFrame !== 'function' || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) { target.textContent = fmtNumber.format(end); return; }
-    const began = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const tick = (now) => {
-      if (token !== scoreAnimation) return;
-      const ratio = Math.min(1, (now - began) / 650);
-      const eased = 1 - Math.pow(1 - ratio, 3);
-      target.textContent = fmtNumber.format(Math.round(start + (end - start) * eased));
-      if (ratio < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+  // ---- Números que mudam no lugar: tween (contagem) + flash/seta de direção. Nunca esvazia: o HTML novo já traz o valor final. ----
+  const TW = { shown: Object.create(null), anims: Object.create(null), flash: Object.create(null), widths: Object.create(null), raf: 0 };
+  const TW_FLASH_MS = 1400;
+  function twDuration() { return typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches ? 650 : 800; }
+  function fmtShort(x) { const a = Math.abs(x); return a >= 1e6 ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(a / 1e6) + ' mi' : a >= 1e3 ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(a / 1e3) + ' mil' : fmtNumber.format(Math.round(a)); }
+  function twFormat(f, v) {
+    if (f === 'pct') return fmtPercent.format(v) + '%';
+    if (f === 'pp') return fmtPercent.format(Math.abs(v));
+    if (f === 'pct0') return Math.round(v) + '%';
+    if (f === 'short') return fmtShort(v);
+    return fmtNumber.format(Math.round(Math.abs(v)));
+  }
+  // Atributos de um número animável (key estável por significado; f = formato).
+  function twAttr(key, value, f) { const v = Number(value); return Number.isFinite(v) ? ' data-tw="' + key + '" data-v="' + v + '" data-f="' + (f || 'int') + '"' : ''; }
+  function tw(key, value, f, cls) { const v = Number(value); return '<span class="tw' + (cls ? ' ' + cls : '') + '"' + twAttr(key, v, f) + '>' + twFormat(f || 'int', v) + '</span>'; }
+  function twNow() { return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(); }
+  function twTick(now) {
+    TW.raf = 0;
+    let live = false;
+    for (const k of Object.keys(TW.anims)) {
+      const a = TW.anims[k], r = Math.max(0, Math.min(1, (now - a.t0) / a.dur)), e = 1 - Math.pow(1 - r, 3);
+      const v = r >= 1 ? a.to : a.from + (a.to - a.from) * e;
+      TW.shown[k] = v;
+      document.querySelectorAll('[data-tw="' + k + '"]').forEach((el) => { el.textContent = twFormat(a.f, v); });
+      if (r >= 1) delete TW.anims[k]; else live = true;
+    }
+    if (live) TW.raf = requestAnimationFrame(twTick);
+  }
+  function twApply(root) {
+    if (!root || !root.querySelectorAll || typeof document === 'undefined') return;
+    const now = twNow(), canAnimate = typeof requestAnimationFrame === 'function' && !prefersReducedMotion();
+    root.querySelectorAll('[data-tw]').forEach((el) => {
+      const k = el.getAttribute('data-tw'), to = Number(el.getAttribute('data-v')), f = el.getAttribute('data-f') || 'int';
+      if (!Number.isFinite(to)) return;
+      const anim = TW.anims[k], from = TW.shown[k];
+      if (anim && anim.to === to) { el.textContent = twFormat(f, from); }
+      else {
+        if (anim) delete TW.anims[k];
+        if (from == null || !Number.isFinite(from)) TW.shown[k] = to;
+        else if (Math.abs(from - to) > 1e-9) {
+          TW.flash[k] = { dir: to > from ? 'up' : 'down', at: now };
+          if (canAnimate) { TW.anims[k] = { from, to, f, t0: now, dur: twDuration() }; el.textContent = twFormat(f, from); }
+          else TW.shown[k] = to;
+        }
+      }
+      const fl = TW.flash[k];
+      if (fl && now - fl.at < TW_FLASH_MS) { el.classList.add('tw-' + fl.dir); el.style.animationDelay = '-' + Math.round(now - fl.at) + 'ms'; }
+    });
+    // Barras: começam na largura anterior e deslizam até a nova (o CSS faz a transição).
+    const pending = [];
+    root.querySelectorAll('[data-tw-w]').forEach((el) => {
+      const k = el.getAttribute('data-tw-w'), to = el.style.width, from = TW.widths[k];
+      TW.widths[k] = to;
+      if (canAnimate && from != null && from !== to) { el.style.width = from; pending.push([el, to]); }
+    });
+    if (pending.length) { void root.offsetWidth; requestAnimationFrame(() => pending.forEach(([el, w]) => { el.style.width = w; })); }
+    if (canAnimate && !TW.raf && Object.keys(TW.anims).length) TW.raf = requestAnimationFrame(twTick);
   }
   function regionCard(uf, result, turn) {
     const candidates = Array.isArray(result && result.cands) ? result.cands.slice(0, 2) : [];
@@ -232,7 +291,7 @@
       const progress = Math.max(0, Math.min(100, Number(secondResult.pst) || 0));
       return '<section class="gov-finalist"><div class="gov-finalist-heading"><span class="candidate-number">' + safeText(candidate.n || '—') + '</span><div><h4>' + safeText(candidate.nm || 'Candidato') + '</h4><small>' + safeText(candidate.sg || 'Partido não informado') + '</small></div><span class="progress-ring" style="--progress:' + progress + '%" aria-label="' + pct(progress) + ' das seções totalizadas"><span>' + pct(progress) + '</span><small>apurado</small></span></div>' +
         '<p class="gov-now"' + (awaiting ? ' data-first-turn-comparison' : '') + '>' + (awaiting ? pct(firstPct) : pct(currentPct)) + ' <small>' + (awaiting ? '· 1º turno' : '· ' + displayOrDash(candidate.v, (n) => fmtNumber.format(n)) + ' votos') + '</small></p>' +
-        '<div class="comparison-turns" data-first-turn-comparison><div><span>1º turno</span><strong>' + pct(firstPct) + '</strong><small>' + displayOrDash(first && first.v, (n) => fmtNumber.format(n)) + ' votos</small></div><div><span>2º turno</span><strong>' + (awaiting ? 'aguardando' : pct(currentPct)) + '</strong><small>' + (awaiting ? '—' : displayOrDash(candidate.v, (n) => fmtNumber.format(n)) + ' votos') + '</small></div></div>' +
+        '<div class="comparison-turns" data-first-turn-comparison><div><span>1º turno</span><strong>' + pct(firstPct) + '</strong><small>' + displayOrDash(first && first.v, (n) => fmtNumber.format(n)) + ' votos</small></div><div><span>2º turno</span><strong>' + (awaiting ? 'sem apuração ainda' : pct(currentPct)) + '</strong><small>' + (awaiting ? '0 votos' : displayOrDash(candidate.v, (n) => fmtNumber.format(n)) + ' votos') + '</small></div></div>' +
         (awaiting ? '' : '<p class="comparison-delta" data-first-turn-comparison>Variação vs. base bilateral: <strong>' + displayOrDash(stats && stats.delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</strong><br><span>vs. percentual bruto do 1º turno: ' + displayOrDash(stats && stats.rawDelta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</span> · votos: <strong>' + displayOrDash(stats && stats.votesDelta, (n) => (n > 0 ? '+' : '') + fmtNumber.format(n)) + '</strong></p>') +
         '<div class="turn-bars" data-first-turn-comparison><div class="turn-bar-row"><span>1º</span><div class="turn-bar"><i style="width:' + (Number.isFinite(firstPct) ? Math.max(0, Math.min(100, firstPct)) : 0) + '%"></i></div><b>' + pct(firstPct) + '</b></div><div class="turn-bar-row"><span>2º</span><div class="turn-bar"><i style="width:' + (Number.isFinite(currentPct) ? Math.max(0, Math.min(100, currentPct)) : 0) + '%"></i></div><b>' + pct(currentPct) + '</b></div></div></section>';
     }).join('');
@@ -284,7 +343,7 @@
   }
   function countdownText(now) {
     const remaining = Math.max(0, Math.ceil((COUNTING_START - now) / 1000));
-    if (remaining === 0) return 'Urnas fechadas · aguardando os primeiros números do TSE';
+    if (remaining === 0) return 'Urnas fechadas · primeiros números do TSE a qualquer momento';
     const days = Math.floor(remaining / 86400);
     const hours = Math.floor((remaining % 86400) / 3600);
     const minutes = Math.floor((remaining % 3600) / 60);
@@ -375,18 +434,18 @@
     return row.swing < -0.01 ? 'negative' : row.swing > 0.01 ? 'positive' : 'near-zero';
   }
   function ufDetail(row) {
-    const swing = row.waiting || row.pst <= 0 || row.swing == null ? '—' : (row.swing > 0 ? '+' : '') + fmtPercent.format(row.swing) + ' p.p. de Flávio';
+    const swing = row.waiting || row.pst <= 0 || row.swing == null ? 'sem apuração ainda' : (row.swing > 0 ? '+' : '') + fmtPercent.format(row.swing) + ' p.p. de Flávio';
     const leader = row.leader === '22' ? 'Flávio' : row.leader === '13' ? 'Lula' : row.pst > 0 ? 'empate' : row.waiting ? '1º turno' : 'sem apuração';
-    const president = '<div><h4>Presidente</h4><p>Apurado <strong>' + pct(row.pst) + '</strong></p><p data-first-turn-comparison>1º turno bruto <strong>Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) + '</strong></p><p data-first-turn-comparison>1º turno bilateral <strong>Flávio ' + pct(row.bilateralA) + ' · Lula ' + pct(row.bilateralA == null ? null : 100 - row.bilateralA) + '</strong></p><p>Agora <strong>' + (row.waiting || row.pst <= 0 ? 'aguardando · —' : 'Flávio ' + pct(row.nowA) + ' · Lula ' + pct(row.nowB)) + '</strong></p><p data-first-turn-comparison>Swing <strong>' + swing + '</strong></p></div>';
+    const president = '<div><h4>Presidente</h4><p>Apurado <strong>' + pct(row.pst) + '</strong></p><p data-first-turn-comparison>1º turno bruto <strong>Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) + '</strong></p><p data-first-turn-comparison>1º turno bilateral <strong>Flávio ' + pct(row.bilateralA) + ' · Lula ' + pct(row.bilateralA == null ? null : 100 - row.bilateralA) + '</strong></p><p>Agora <strong>' + (row.waiting || row.pst <= 0 ? 'sem apuração ainda' : 'Flávio ' + pct(row.nowA) + ' · Lula ' + pct(row.nowB)) + '</strong></p><p data-first-turn-comparison>Swing <strong>' + swing + '</strong></p></div>';
     const governor = '<div class="uf-governor-detail" data-governor-uf="' + safeText(row.uf) + '">' + (GOVERNOR_UFS.includes(row.uf) ? '' : '<h4>Governador</h4><p>Esta abrangência não tem disputa estadual de 2º turno.</p>') + '</div>';
     return '<div class="uf-detail-heading"><div><p class="eyebrow">DETALHE DA ABRANGÊNCIA</p><h3>' + safeText(row.name) + ' <span>(' + row.uf.toUpperCase() + ')</span></h3></div><button type="button" id="uf-detail-close" aria-label="Fechar detalhe">×</button></div>' +
-      '<p class="uf-detail-leader">' + (row.waiting || !(row.pst > 0) ? 'Aguardando apuração do 2º turno' : safeText(leader) + ' lidera') + '</p>' +
+      '<p class="uf-detail-leader">' + (row.waiting || !(row.pst > 0) ? 'Sem apuração do 2º turno ainda · no 1º turno: Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) : safeText(leader) + ' lidera') + '</p>' +
       (disputeMode === 'governor' ? governor : '<div class="uf-detail-grid">' + president + governor + '</div>');
   }
   function ufTooltip(row, snapshot) {
     const color = mapColor(row, mapMode);
-    const basis = Number(row.pst) === 0 ? 'aguardando apuração' : 'base: 2º turno';
-    const value = color.value == null ? (Number(row.pst) === 0 ? 'aguardando apuração' : row.waiting ? 'aguardando' : '—') : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : pct(color.value);
+    const basis = Number(row.pst) === 0 ? 'no 1º turno: Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) : 'base: 2º turno';
+    const value = color.value == null ? (Number(row.pst) === 0 || row.waiting ? 'sem apuração ainda' : 'sem dados') : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : pct(color.value);
     return row.name + ' · ' + color.state + ' · ' + basis + ' · ' + value;
   }
   function governorDetail(uf, snapshot) {
@@ -402,7 +461,7 @@
       const base = fc.find((item) => String(item.n) === String(candidate.n));
       const opponent = fc.find((item) => String(item.n) !== String(candidate.n) && finals.some((f) => String(f.n) === String(item.n)));
       const stats = comparisonData(base, opponent, candidate);
-      return '<article class="uf-gov-finalist"><strong>' + safeText(candidate.nm || 'Candidato') + ' (' + safeText(candidate.sg || '—') + ')</strong><p data-first-turn-comparison>1º turno bruto ' + pct(base && base.p) + ' · base bilateral ' + displayOrDash(stats && stats.bilateral, pct) + '</p><p>Agora ' + (waiting || Number(second.pst) <= 0 ? 'aguardando · —' : pct(candidate.p)) + ' · <span data-first-turn-comparison>swing ' + (waiting || Number(second.pst) <= 0 ? '—' : displayOrDash(stats && stats.delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.')) + '</span></p></article>';
+      return '<article class="uf-gov-finalist"><strong>' + safeText(candidate.nm || 'Candidato') + ' (' + safeText(candidate.sg || '—') + ')</strong><p data-first-turn-comparison>1º turno bruto ' + pct(base && base.p) + ' · base bilateral ' + displayOrDash(stats && stats.bilateral, pct) + '</p><p>Agora ' + (waiting || Number(second.pst) <= 0 ? 'sem apuração ainda' : pct(candidate.p)) + ' · <span data-first-turn-comparison>swing ' + (waiting || Number(second.pst) <= 0 ? 'sem apuração ainda' : displayOrDash(stats && stats.delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.')) + '</span></p></article>';
     }).join('');
   }
   function showUfDetail(uf, trigger, snapshotArg) {
@@ -422,6 +481,7 @@
     const governor = panel.querySelector('.uf-governor-detail');
     if (governor && GOVERNOR_UFS.includes(uf)) governor.innerHTML = governorDetail(uf, snapshot);
     panel.querySelectorAll('[data-first-turn-comparison]').forEach((node) => { node.hidden = !preferences.showComparison; });
+    twApply(panel);
     panel.dataset.open = 'true';
     panel.dataset.uf = uf;
     const selector = $('uf-select'); if (selector) selector.value = uf;
@@ -443,12 +503,13 @@
       if (trigger && trigger.focus) trigger.focus();
     }
   }
+  const NO_COUNT = '<span class="cell-muted">sem apuração</span>';
   function ufsMarkup(snapshot) {
     const rows = ufRows(snapshot);
     const byUf = Object.fromEntries(rows.map((row) => [row.uf, row]));
     const ordered = sortUfRows(rows, ufSort.key, ufSort.direction);
-    const cell = (value) => value == null || !Number.isFinite(Number(value)) ? '—' : pct(value);
-    const table = ordered.map((r) => '<tr data-uf="' + r.uf + '"><th scope="row">' + r.uf.toUpperCase() + '</th><td>' + cell(r.pst) + '</td><td data-first-turn-comparison>' + cell(r.firstA) + '</td><td data-first-turn-comparison>' + cell(r.firstB) + '</td><td>' + (r.waiting ? '—' : cell(r.nowA)) + '</td><td>' + (r.waiting ? '—' : cell(r.nowB)) + '</td><td data-first-turn-comparison title="Base bilateral: ' + cell(r.bilateralA) + '">' + (r.waiting || r.swing == null ? '—' : (r.swing > 0 ? '+' : '') + fmtPercent.format(r.swing) + ' p.p.') + '</td></tr>').join('');
+    const cell = (value) => value == null || !Number.isFinite(Number(value)) ? NO_COUNT : pct(value);
+    const table = ordered.map((r) => '<tr data-uf="' + r.uf + '"><th scope="row">' + r.uf.toUpperCase() + '</th><td>' + cell(r.pst) + '</td><td data-first-turn-comparison>' + cell(r.firstA) + '</td><td data-first-turn-comparison>' + cell(r.firstB) + '</td><td>' + (r.waiting ? NO_COUNT : cell(r.nowA)) + '</td><td>' + (r.waiting ? NO_COUNT : cell(r.nowB)) + '</td><td data-first-turn-comparison title="Base bilateral: ' + cell(r.bilateralA) + '">' + (r.waiting || r.swing == null ? NO_COUNT : (r.swing > 0 ? '+' : '') + fmtPercent.format(r.swing) + ' p.p.') + '</td></tr>').join('');
     return { rows: byUf, table };
   }
   function mapColor(row, mode) {
@@ -456,20 +517,20 @@
     if (mode === 'progress') {
       if (!Number.isFinite(row.pst) || row.pst < 0) return { fill:'#454963', value:null, state:'sem dados' };
       const value = Math.max(0, Math.min(100, row.pst));
-      return { fill: value === 0 ? '#454963' : 'rgba(112, 151, 255, ' + (0.28 + value / 145).toFixed(3) + ')', value, state: value === 0 ? 'aguardando apuração' : 'seções apuradas' };
+      return { fill: value === 0 ? '#454963' : 'rgba(112, 151, 255, ' + (0.28 + value / 145).toFixed(3) + ')', value, state: value === 0 ? 'sem apuração ainda' : 'seções apuradas' };
     }
     const hasCount = Number.isFinite(row.pst) && row.pst > 0;
     const hasNow = !row.waiting && hasCount && row.nowA != null && row.nowB != null;
-    if (mode === 'swing' && (!hasNow || row.swing == null)) return { fill: '#454963', value: null, state: row.pst === 0 ? 'aguardando' : 'sem dados' };
+    if (mode === 'swing' && (!hasNow || row.swing == null)) return { fill: '#454963', value: null, state: row.pst === 0 ? 'sem apuração ainda' : 'sem dados' };
     if (mode === 'swing') {
       const value = row.swing;
       if (Math.abs(value) <= 0.01) return { fill: '#77718d', value, state: 'perto de zero' };
       const strength = Math.min(0.78, 0.28 + Math.abs(value) / 35);
       return { fill: value > 0 ? 'rgba(49, 193, 232, ' + strength + ')' : 'rgba(255, 108, 126, ' + strength + ')', value, state: value > 0 ? 'a favor de Flávio' : 'a favor de Lula' };
     }
-    if (!hasNow) return { fill: '#454963', value: null, state: row.pst === 0 ? 'aguardando apuração' : 'sem dados' };
+    if (!hasNow) return { fill: '#454963', value: null, state: row.pst === 0 ? 'sem apuração ainda' : 'sem dados' };
     const leader = row.leader;
-    if (!leader) return { fill: '#454963', value: null, state: row.pst > 0 ? 'empate' : 'aguardando apuração' };
+    if (!leader) return { fill: '#454963', value: null, state: row.pst > 0 ? 'empate' : 'sem apuração ainda' };
     const share = leader === '22' ? row.nowA : row.nowB;
     if (share == null) return { fill: '#454963', value: null, state: 'sem dados' };
     const margin = Math.abs(Number(row.nowA) - Number(row.nowB));
@@ -517,7 +578,7 @@
     if (!GOVERNOR_UFS.includes(uf) || finals.length < 2) return { fill:'#454963', value:null, state:'sem disputa estadual' };
     const first = finals.find((candidate) => String(candidate.n) === String(finals[0].n));
     const second = finals.find((candidate) => String(candidate.n) !== String(finals[0].n));
-    if (Number(result.pst) <= 0 || !first || !second) return { fill:'#454963', value:null, state:'aguardando apuração estadual' };
+    if (Number(result.pst) <= 0 || !first || !second) return { fill:'#454963', value:null, state:'sem apuração estadual ainda' };
     const lead = Number(first.v) - Number(second.v);
     return { fill: lead === 0 ? '#77718d' : lead > 0 ? 'rgba(49,193,232,.75)' : 'rgba(255,108,126,.75)', value:null, state: lead === 0 ? 'empate estadual' : (lead > 0 ? first.nm : second.nm) + ' lidera' };
   }
@@ -592,8 +653,8 @@
     return mode === 'progress'
       ? '<span><i class="progress-low"></i>menos apurado</span><span><i class="progress-high"></i>mais apurado</span><span><i class="swing-neutral"></i>sem dados</span>'
       : mode === 'leader'
-      ? '<span><i class="legend-lula"></i>Lula lidera</span><span><i class="legend-flavio"></i>Flávio lidera</span><span><i class="swing-neutral"></i>empate</span><span><i class="swing-neutral"></i>aguardando apuração</span><span><i class="swing-neutral"></i>sem dados</span>' + (waiting ? '<span class="legend-note">Base: 2º turno</span>' : '<span class="legend-note">Intensidade = margem</span>')
-      : '<span><i class="swing-neg"></i>− a favor de Lula</span><span><i class="swing-mid"></i>perto de zero</span><span><i class="swing-pos"></i>+ a favor de Flávio</span><span><i class="swing-neutral"></i>aguardando</span><span><i class="swing-neutral"></i>empate</span>';
+      ? '<span><i class="legend-lula"></i>Lula lidera</span><span><i class="legend-flavio"></i>Flávio lidera</span><span><i class="swing-neutral"></i>empate</span><span><i class="swing-neutral"></i>sem apuração ainda</span><span><i class="swing-neutral"></i>sem dados</span>' + (waiting ? '<span class="legend-note">Base: 2º turno</span>' : '<span class="legend-note">Intensidade = margem</span>')
+      : '<span><i class="swing-neg"></i>− a favor de Lula</span><span><i class="swing-mid"></i>perto de zero</span><span><i class="swing-pos"></i>+ a favor de Flávio</span><span><i class="swing-neutral"></i>sem apuração ainda</span><span><i class="swing-neutral"></i>empate</span>';
   }
   function renderUfs(snapshot) {
     const markup = ufsMarkup(snapshot);
@@ -602,8 +663,9 @@
     const ext = $('uf-exterior');
     if (ext && exterior) {
       const color = disputeMode === 'governor' ? { fill:'#35384d',value:null,state:'sem disputa estadual' } : mapColor(exterior, mapMode);
-      ext.innerHTML = '<button type="button" id="uf-exterior-trigger" class="uf-exterior-button ' + (disputeMode === 'governor' ? '' : mapMode === 'swing' ? swingClass(exterior) : 'leader-' + (exterior.leader || 'neutral')) + '" data-uf="zz" aria-pressed="' + (selectedUf === 'zz') + '" style="--uf-fill:' + color.fill + '"><strong>🌐 Exterior (ZZ)</strong><span>' + (snapshot.pres.r2.zz && snapshot.pres.r2.zz.bu && disputeMode !== 'governor' ? '<i class="bu-tag">BUs ' + fmtNumber.format(snapshot.pres.r2.zz.st) + '/' + fmtNumber.format(snapshot.pres.r2.zz.ts) + '</i> ' : '') + (disputeMode === 'governor' ? 'Sem disputa estadual' : color.value == null ? (color.state === 'sem dados' ? 'Sem dados' : color.state) : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : pct(color.value)) + '</span></button>';
+      ext.innerHTML = '<button type="button" id="uf-exterior-trigger" class="uf-exterior-button ' + (disputeMode === 'governor' ? '' : mapMode === 'swing' ? swingClass(exterior) : 'leader-' + (exterior.leader || 'neutral')) + '" data-uf="zz" aria-pressed="' + (selectedUf === 'zz') + '" style="--uf-fill:' + color.fill + '"><strong>🌐 Exterior (ZZ)</strong><span>' + (snapshot.pres.r2.zz && snapshot.pres.r2.zz.bu && disputeMode !== 'governor' ? '<i class="bu-tag">BUs ' + tw('ext-st', snapshot.pres.r2.zz.st, 'int') + '/' + fmtNumber.format(snapshot.pres.r2.zz.ts) + '</i> ' : '') + (disputeMode === 'governor' ? 'Sem disputa estadual' : color.value == null ? (color.state === 'sem dados' ? 'Sem dados' : color.state) : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : tw('ext-p-' + mapMode, color.value, 'pct')) + '</span></button>';
     }
+    if (ext) twApply(ext);
     const chips = $('uf-chips');
     if (chips) chips.innerHTML = ['rn','pb','pe','al','se','es','rj','df'].map((uf) => '<button type="button" id="uf-chip-' + uf + '" class="uf-chip" data-uf="' + uf + '" aria-pressed="' + (selectedUf === uf) + '" aria-label="Selecionar ' + UF_NAMES[uf] + '">' + uf.toUpperCase() + '</button>').join('');
     if ($('uf-table-body')) $('uf-table-body').innerHTML = markup.table;
@@ -692,7 +754,7 @@
       const remaining = Math.max(0, Math.ceil((COUNTING_START - (now == null ? Date.now() : now)) / 1000));
       const title = $('waiting-title');
       const countdown = $('waiting-countdown');
-      if (title) title.textContent = remaining ? 'Aguardando apuração do 2º turno' : 'Urnas fechadas · aguardando os primeiros números do TSE';
+      if (title) title.textContent = remaining ? 'Totalização oficial do TSE às 17h' : 'Urnas fechadas · primeiros números do TSE a qualquer momento';
       if (countdown) countdown.innerHTML = remaining ? '<span class="clock-live-dot" aria-hidden="true"></span>' + [Math.floor(remaining / 3600), Math.floor((remaining % 3600) / 60), remaining % 60].map((n, i) => '<span class="clock-unit"><strong>' + String(n).padStart(2, '0') + '</strong><small>' + ['horas','minutos','segundos'][i] + '</small></span>').join('<i>:</i>') : '<span class="clock-live-dot" aria-hidden="true"></span>';
     }
   }
@@ -735,8 +797,8 @@
     const top = (buZZ.paises || []).filter((p) => p.rec > 0).slice(0, 8).map((p) => { const s = p.lula + p.flavio; return '<li><span>' + safeText(p.pais) + ' <small>' + p.rec + '/' + p.tot + ' BUs</small></span><b class="bu-a">' + (s ? fmtPercent.format(100 * p.flavio / s) : '—') + '%</b><b class="bu-b">' + (s ? fmtPercent.format(100 * p.lula / s) : '—') + '%</b></li>'; }).join('');
     return '<section class="bu-detail" id="bu-detail"><h4>Exterior · boletins de urna (parcial)</h4>' +
       '<p class="bu-warn">Parcial por boletins de urna, não é a totalização oficial' + (officialOn ? ' · o painel já usa a totalização oficial do TSE' : '') + '.</p>' +
-      '<p class="bu-count"><strong>' + fmtNumber.format(Number(buZZ.recebidas) || 0) + '</strong> de ' + fmtNumber.format(Number(buZZ.secoes_principais) || 0) + ' BUs recebidos' + (st ? ' · coletado às ' + st.hm + ' (Brasília)' : '') + '</p>' +
-      (vv ? '<p class="bu-tot"><span class="bu-a">Flávio <b>' + fmtNumber.format(a) + '</b> (' + fmtPercent.format(100 * a / vv) + '%)</span> <span class="bu-b">Lula <b>' + fmtNumber.format(b) + '</b> (' + fmtPercent.format(100 * b / vv) + '%)</span></p><p class="bu-sub">Brancos ' + fmtNumber.format(Number(t.brancos) || 0) + ' · nulos ' + fmtNumber.format(Number(t.nulos) || 0) + '</p>' : '<p class="bu-sub">Nenhum BU com votos ainda.</p>') +
+      '<p class="bu-count"><strong>' + tw('bu-rec', Number(buZZ.recebidas) || 0, 'int') + '</strong> de ' + fmtNumber.format(Number(buZZ.secoes_principais) || 0) + ' BUs recebidos' + (st ? ' · coletado às ' + st.hm + ' (Brasília)' : '') + '</p>' +
+      (vv ? '<p class="bu-tot"><span class="bu-a">Flávio <b>' + tw('bu-a', a, 'int') + '</b> (' + fmtPercent.format(100 * a / vv) + '%)</span> <span class="bu-b">Lula <b>' + tw('bu-b', b, 'int') + '</b> (' + fmtPercent.format(100 * b / vv) + '%)</span></p><p class="bu-sub">Brancos ' + fmtNumber.format(Number(t.brancos) || 0) + ' · nulos ' + fmtNumber.format(Number(t.nulos) || 0) + '</p>' : '<p class="bu-sub">Nenhum BU com votos ainda.</p>') +
       (top ? '<ol class="bu-paises"><li class="bu-h"><span>País</span><b>Flávio</b><b>Lula</b></li>' + top + '</ol>' : '') +
       '<p class="bu-src">Fonte: arquivos públicos de BU do TSE (resultados.tse.jus.br, arquivo-urna 3221).</p></section>';
   }
@@ -779,7 +841,7 @@
     return m ? m[1] + '/' + m[2] + ' ' + String(r.hg || '').slice(0, 5) : null;
   }
   function tseStripMarkup() {
-    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checando TSE…</span><p class="tse-note" id="tse-note" hidden></p></div>';
+    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checagem a cada 30s</span><p class="tse-note" id="tse-note" hidden></p></div>';
   }
   function updateTseStrip(nowArg) {
     if (typeof document === 'undefined' || !$('tse-gen')) return;
@@ -790,36 +852,56 @@
     const next = $('tse-next');
     const stale = pollState && pollState.lastGood && now - pollState.lastGood > 3 * REFRESH_MS;
     const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
-    if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Checando o TSE agora…' : (stale ? 'TSE instável · dados de ' + hm(pollState.lastGood) + ' · ' : '') + 'Próxima checagem em ' + Math.max(0, Math.ceil(((REFRESH_MS * (1 + (pollState.skip || 0))) - (now - pollState.lastUpdated)) / 1000)) + 's';
-    else next.textContent = 'Checando o TSE…';
+    if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Última checagem às ' + hm(pollState.lastUpdated) : (stale ? 'TSE instável · dados de ' + hm(pollState.lastGood) + ' · ' : '') + 'Próxima checagem em ' + Math.max(0, Math.ceil(((REFRESH_MS * (1 + (pollState.skip || 0))) - (now - pollState.lastUpdated)) / 1000)) + 's';
+    else next.textContent = 'Checagem a cada 30s';
     next.classList.toggle('is-stale', !!stale);
     const note = $('tse-note'), waiting = isAwaiting(snapshot);
     note.hidden = !waiting;
-    if (waiting) note.textContent = now < COUNTING_START ? 'O TSE só divulga resultados a partir das 17h (Brasília), inclusive do Exterior.' : 'Urnas fechadas: aguardando a primeira divulgação do TSE (inclusive do Exterior).';
+    if (waiting) note.textContent = now < COUNTING_START ? 'Totalização oficial do TSE a partir das 17h (Brasília). Até lá, o placar mostra o Exterior pelos boletins de urna (parcial, não oficial).' : 'Urnas fechadas: o TSE começa a divulgar a qualquer momento. O placar segue com o Exterior pelos boletins de urna.';
+  }
+  function votesOf(r) { return r && Array.isArray(r.cands) ? r.cands.reduce((sum, c) => sum + (Number(c.v) || 0), 0) : 0; }
+  // Melhor número real enquanto o Brasil oficial está zerado: o Exterior (boletins de urna ou ZZ oficial).
+  function scoreboardPartial(snapshot) {
+    const z = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2.zz;
+    if (!z || !(votesOf(z) > 0)) return null;
+    if (z.bu) {
+      const st = Number(z.st) || 0, ts = Number(z.ts) || 0;
+      return { result: z, label: 'Parcial: Exterior por boletins de urna', detail: '<span class="tw"' + twAttr('sb-urnas', st, 'int') + '>' + fmtNumber.format(st) + '</span>/' + fmtNumber.format(ts) + ' urnas', short: 'Exterior por boletins, não oficial', remaining: ts >= st ? fmtNumber.format(ts - st) + ' urnas no Exterior' : 'Indisponível' };
+    }
+    return { result: z, label: 'Parcial: Exterior (TSE oficial)', detail: pct(z.pst) + ' das seções', short: 'só o Exterior' };
   }
   function turnCompareMarkup(snapshot, uf) {
     const key = uf && snapshot.pres.r1[uf] ? uf : 'br';
-    const r1 = snapshot.pres.r1[key], r2 = snapshot.pres.r2[key];
-    const votes = (r) => r && Array.isArray(r.cands) ? r.cands.reduce((sum, c) => sum + (Number(c.v) || 0), 0) : 0;
-    const counting = !!r2 && Number(r2.pst) > 0 && votes(r2) > 0;
+    let dataKey = key;
+    const brCounting = (r) => !!r && Number(r.pst) > 0 && votesOf(r) > 0;
+    // Sem dado oficial do Brasil: compara o Exterior (2º turno parcial × 1º turno do ZZ), rotulado. Com Brasil oficial, volta sozinho.
+    if (key === 'br' && !brCounting(snapshot.pres.r2.br) && brCounting(snapshot.pres.r2.zz) && snapshot.pres.r1.zz) dataKey = 'zz';
+    const r1 = snapshot.pres.r1[dataKey], r2 = snapshot.pres.r2[dataKey];
+    const counting = brCounting(r2);
+    const twKey = key === 'br' ? 'main' : key;
     const num = (v) => v != null && Number.isFinite(Number(v)) ? Number(v) : null;
-    const votesText = (x) => x == null ? '—' : '<span class="tc-full">' + fmtNumber.format(x) + '</span><span class="tc-short">' + (x >= 1e6 ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(x / 1e6) + ' mi' : x >= 1e3 ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(x / 1e3) + ' mil' : fmtNumber.format(x)) + '</span>';
+    const votesText = (x, k) => x == null ? 'Indisponível' : '<span class="tc-full tw"' + twAttr(k + 'f', x, 'int') + '>' + fmtNumber.format(x) + '</span><span class="tc-short tw"' + twAttr(k + 's', x, 'short') + '>' + fmtShort(x) + '</span>';
     const row = (n, name, color) => {
       const c1 = candidateByNumber(r1, n), c2 = candidateByNumber(r2, n);
       const p1 = num(c1 && c1.p), v1 = num(c1 && c1.v), p2 = num(c2 && c2.p), v2 = num(c2 && c2.v);
       const delta = counting && p1 != null && p2 != null ? p2 - p1 : null;
+      const k = 'tc-' + twKey + '-' + n + '-';
       return '<div class="tc-row tc-' + color + '" data-tc="' + n + '"><span class="tc-name">' + name + '</span>' +
-        '<span class="tc-first"><small>1º</small> <b>' + pct(p1) + '</b> <em>' + votesText(v1) + '</em></span>' +
+        '<span class="tc-first"><small>1º</small> <b>' + (p1 == null ? 'Indisponível' : tw(k + 'p1', p1, 'pct')) + '</b> <em>' + votesText(v1, k + 'v1') + '</em></span>' +
         '<span class="tc-arrow" aria-hidden="true">→</span>' +
-        '<span class="tc-now"><small>agora</small> ' + (counting ? '<b>' + pct(p2) + '</b> <em>' + votesText(v2) + '</em>' : '<b class="tc-wait">aguardando</b>') + '</span>' +
-        '<span class="tc-delta' + (delta > 0 ? ' up' : delta < 0 ? ' down' : '') + '">' + (delta == null ? '—' : (delta > 0 ? '▲ +' : delta < 0 ? '▼ −' : '= ') + fmtPercent.format(Math.abs(delta)) + ' p.p.') + '</span></div>';
+        '<span class="tc-now"><small>agora</small> ' + (counting ? '<b>' + (p2 == null ? 'Indisponível' : tw(k + 'p2', p2, 'pct')) + '</b> <em>' + votesText(v2, k + 'v2') + '</em>' : '<b class="tc-zero">0 votos</b> <em>apuração às 17h</em>') + '</span>' +
+        '<span class="tc-delta' + (delta > 0 ? ' up' : delta < 0 ? ' down' : '') + '">' + (delta == null ? '<small>sem apuração ainda</small>' : (delta > 0 ? '▲ +' : delta < 0 ? '▼ −' : '= ') + tw(k + 'd', Math.abs(delta), 'pp') + ' p.p.') + '</span></div>';
     };
-    return '<div class="turn-compare" id="turn-compare" data-scope="' + key + '"><div class="tc-head"><strong>2º turno × 1º turno</strong><span class="tc-scope">' + (key === 'br' ? 'Brasil · % dos votos válidos' : safeText(UF_NAMES[key]) + (r2 && r2.bu ? ' <em class="tc-bu" title="Parcial por boletins de urna, não é a totalização oficial"><span class="tc-bu-l">parcial por BUs · não oficial</span><span class="tc-bu-s">BUs parciais</span></em>' : '') + ' <button type="button" class="tc-reset" data-tc-reset>Brasil ✕</button>') + '</span></div>' + row('13', 'Lula', 'lula') + row('22', 'Flávio', 'flavio') + '</div>';
+    const buTag = r2 && r2.bu ? ' <em class="tc-bu" title="Parcial por boletins de urna, não é a totalização oficial"><span class="tc-bu-l">parcial por BUs · não oficial</span><span class="tc-bu-s">BUs parciais</span></em>' : '';
+    const scope = key === 'br'
+      ? (dataKey === 'zz' ? '<span class="tc-src">' + (r2 && r2.bu ? 'Exterior (boletins)' : 'Exterior (oficial)') + '</span><span class="tc-scope-more"> · Brasil a partir das 17h</span>' + buTag : 'Brasil · % dos votos válidos')
+      : safeText(UF_NAMES[key]) + buTag + ' <button type="button" class="tc-reset" data-tc-reset>Brasil ✕</button>';
+    return '<div class="turn-compare" id="turn-compare" data-scope="' + key + '" data-src="' + dataKey + '"><div class="tc-head"><strong>2º turno × 1º turno</strong><span class="tc-scope">' + scope + '</span></div>' + row('13', 'Lula', 'lula') + row('22', 'Flávio', 'flavio') + '</div>';
   }
   function refreshTurnCompare() {
     const node = typeof document !== 'undefined' ? $('turn-compare') : null;
     const snapshot = typeof window !== 'undefined' ? window.currentElectionSnapshot : null;
-    if (node && snapshot) node.outerHTML = turnCompareMarkup(snapshot, selectedUf);
+    if (node && snapshot) { node.outerHTML = turnCompareMarkup(snapshot, selectedUf); twApply($('turn-compare')); }
   }
   function render(snapshot, chanceStale) {
     if (!snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2 || !snapshot.gov || !snapshot.gov.r2) throw new Error('Formato de resultados inválido');
@@ -828,10 +910,11 @@
     liveSnapshot = snapshot;
     const pres1 = snapshot.pres.r1.br;
     const pres2 = snapshot.pres.r2.br;
-    const scoreboard = presidentialComparison(pres1, pres2).replace('<section class="pres-scoreboard"', '<section class="pres-scoreboard' + (isAwaiting(snapshot) ? ' is-awaiting' : '') + '"');
+    const scoreboard = presidentialComparison(pres1, pres2, scoreboardPartial(snapshot));
+    // Troca no mesmo frame (sem limpar antes): o HTML novo já vem preenchido e o tween parte do último valor mostrado.
     $('pres-cards').innerHTML = tseStripMarkup() + scoreboard.replace(/<\/section>$/, turnCompareMarkup(snapshot, selectedUf) + '</section>');
     updateTseStrip();
-    animateScoreTotal();
+    twApply($('pres-cards'));
     const official = officialView(snapshot);  // chance/projeção/regiões só com totalização oficial (BUs parciais ficam fora)
     updateChance(official, !!chanceStale);
     $('pres-projection').innerHTML = projectionMarkup(official);
@@ -843,7 +926,9 @@
     $('first-turn-details').innerHTML = '<section class="data-panel"><div class="section-heading compact"><div><p class="eyebrow">RESULTADO FINAL · 1º TURNO</p><h3>Presidência</h3></div><span>' + pct(firstTurn && firstTurn.pst) + ' das seções</span></div><div class="first-turn-candidates">' + ((firstTurn && firstTurn.cands) || []).map((candidate) => '<article><strong>' + safeText(candidate.nm || 'Candidato') + ' (' + safeText(candidate.sg || '—') + ')</strong><span>' + pct(Number(candidate.p)) + '</span><small>' + fmtNumber.format(Number(candidate.v) || 0) + ' votos</small></article>').join('') + '</div></section>';
     const fa = candidateByNumber(firstTurn, '22'), fb = candidateByNumber(firstTurn, '13');
     const na = candidateByNumber(pres2, '22'), nb = candidateByNumber(pres2, '13');
-    $('analysis-swing-content').innerHTML = '<section class="data-panel"><div class="section-heading compact"><div><p class="eyebrow">COMPARAÇÃO PRESIDENCIAL</p><h3>1º turno × agora</h3></div></div><p>Flávio: 1º turno ' + pct(fa && Number(fa.p)) + ' · agora ' + (isAwaiting(snapshot) ? 'aguardando apuração' : pct(na && Number(na.p))) + '</p><p>Lula: 1º turno ' + pct(fb && Number(fb.p)) + ' · agora ' + (isAwaiting(snapshot) ? 'aguardando apuração' : pct(nb && Number(nb.p))) + '</p><p class="muted">A tabela por UF detalha a variação contra a base bilateral do 1º turno.</p></section>';
+    const zzNow = scoreboardPartial(snapshot);
+    const nowFallback = (n) => { const c = zzNow && candidateByNumber(zzNow.result, n); return c ? pct(Number(c.p)) + ' no Exterior (' + (zzNow.result.bu ? 'boletins, parcial' : 'oficial, parcial') + ')' : 'sem apuração ainda'; };
+    $('analysis-swing-content').innerHTML = '<section class="data-panel"><div class="section-heading compact"><div><p class="eyebrow">COMPARAÇÃO PRESIDENCIAL</p><h3>1º turno × agora</h3></div></div><p>Flávio: 1º turno ' + pct(fa && Number(fa.p)) + ' · agora ' + (isAwaiting(snapshot) ? nowFallback('22') : pct(na && Number(na.p))) + '</p><p>Lula: 1º turno ' + pct(fb && Number(fb.p)) + ' · agora ' + (isAwaiting(snapshot) ? nowFallback('13') : pct(nb && Number(nb.p))) + '</p><p class="muted">A tabela por UF detalha a variação contra a base bilateral do 1º turno.</p></section>';
     const generated = snapshot.gerado ? new Date(snapshot.gerado) : null;
     $('pres-update').textContent = generated && !Number.isNaN(generated.getTime()) ? 'Snapshot atualizado em ' + generated.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Snapshot oficial';
     const turnSummary = $('turn-summary');
@@ -987,7 +1072,7 @@
     const firstBilateralA = firstSum ? firstA * 100 / firstSum : NaN;
     const delta = Number.isFinite(pa) && Number.isFinite(firstBilateralA) ? pa - firstBilateralA : NaN;
     const progress = total ? progressWeight / total : NaN;
-    return '<article class="region-card"><div class="region-heading"><h3>' + name + '</h3><span>' + (waiting ? '1º turno' : pct(progress) + ' apurado') + '</span></div><p>Flávio<strong>' + pct(pa) + '</strong><br>Lula<strong>' + pct(pb) + '</strong></p>' + (waiting ? '' : '<small data-first-turn-comparison>Base bilateral 1º turno: Flávio ' + pct(firstBilateralA) + ' · Lula ' + pct(firstSum ? firstB * 100 / firstSum : NaN) + ' · Swing Flávio ' + displayOrDash(delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</small><br>') + '<small>' + (seen ? fmtNumber.format(sum) + ' votos válidos · ' + (waiting ? '1º turno' : ufs.length + ' abrangência(s)') : 'Aguardando dados') + '</small></article>';
+    return '<article class="region-card"><div class="region-heading"><h3>' + name + '</h3><span>' + (waiting ? '1º turno' : pct(progress) + ' apurado') + '</span></div><p>Flávio<strong>' + pct(pa) + '</strong><br>Lula<strong>' + pct(pb) + '</strong></p>' + (waiting ? '' : '<small data-first-turn-comparison>Base bilateral 1º turno: Flávio ' + pct(firstBilateralA) + ' · Lula ' + pct(firstSum ? firstB * 100 / firstSum : NaN) + ' · Swing Flávio ' + displayOrDash(delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</small><br>') + '<small>' + (seen ? fmtNumber.format(sum) + ' votos válidos · ' + (waiting ? '1º turno' : ufs.length + ' abrangência(s)') : 'Sem dados ainda') + '</small></article>';
   }
   function readHistory() {
     let local = [];
