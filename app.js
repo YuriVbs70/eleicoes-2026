@@ -346,7 +346,8 @@
       const nowA = candidateByNumber(nowResult, '22'), nowB = candidateByNumber(nowResult, '13');
       const baseSum = Number(firstA && firstA.p) + Number(firstB && firstB.p);
       let leader = null, swing = null;
-      if (waiting && firstA && firstB && baseSum > 0) {
+      const ufCounting = Number(nowResult && nowResult.pst) > 0;
+      if (waiting && !ufCounting && firstA && firstB && baseSum > 0) {
         leader = Number(firstA.p) === Number(firstB.p) ? null : (Number(firstA.p) > Number(firstB.p) ? '22' : '13');
       } else if (Number(nowResult && nowResult.pst) > 0 && nowA && nowB && Number.isFinite(Number(nowA.p)) && Number.isFinite(Number(nowB.p))) {
         if (Number(nowA.p) !== Number(nowB.p)) leader = Number(nowA.p) > Number(nowB.p) ? '22' : '13';
@@ -355,7 +356,7 @@
           swing = Number(nowA.p) - bilateralA;
         }
       }
-      return { uf, name: UF_NAMES[uf], pst: Number(nowResult && nowResult.pst), waiting, firstA: firstA ? Number(firstA.p) : null, firstB: firstB ? Number(firstB.p) : null,
+      return { uf, name: UF_NAMES[uf], pst: Number(nowResult && nowResult.pst), waiting: waiting && !(Number(nowResult && nowResult.pst) > 0), firstA: firstA ? Number(firstA.p) : null, firstB: firstB ? Number(firstB.p) : null,
         nowA: nowA ? Number(nowA.p) : null, nowB: nowB ? Number(nowB.p) : null, swing, leader, bilateralA: firstA && firstB && baseSum > 0 ? Number(firstA.p) * 100 / baseSum : null };
     });
   }
@@ -410,6 +411,12 @@
     if (!row) return;
     selectedUf = uf;
     const panel = $('uf-detail');
+    if (typeof matchMedia === 'function') {
+      if (!panel.__home) panel.__home = { parent: panel.parentElement, next: panel.nextSibling };
+      const mobileSheet = matchMedia('(max-width: 1023px)').matches;
+      if (mobileSheet && panel.parentElement !== document.body) document.body.appendChild(panel);
+      else if (!mobileSheet && panel.parentElement === document.body && panel.__home.parent) panel.__home.parent.insertBefore(panel, panel.__home.next && panel.__home.next.parentElement === panel.__home.parent ? panel.__home.next : null);
+    }
     panel.innerHTML = ufDetail(row);
     const governor = panel.querySelector('.uf-governor-detail');
     if (governor && GOVERNOR_UFS.includes(uf)) governor.innerHTML = governorDetail(uf, snapshot);
@@ -420,12 +427,14 @@
     const close = $('uf-detail-close');
     if (close) close.addEventListener('click', () => closeUfDetail(true));
     panel.dataset.trigger = uf === 'zz' ? 'uf-exterior' : trigger && trigger.id ? trigger.id : '';
+    refreshTurnCompare();
   }
   function closeUfDetail(returnFocus) {
     const panel = $('uf-detail'); if (!panel) return;
     const triggerId = panel.dataset.trigger;
     panel.dataset.open = 'false'; panel.dataset.uf = '';
     selectedUf = null;
+    refreshTurnCompare();
     panel.innerHTML = '<p>Selecione uma UF para ver os detalhes.</p>';
     const selector = $('uf-select'); if (selector) selector.value = '';
     if (returnFocus && triggerId) {
@@ -686,13 +695,66 @@
       if (countdown) countdown.innerHTML = remaining ? '<span class="clock-live-dot" aria-hidden="true"></span>' + [Math.floor(remaining / 3600), Math.floor((remaining % 3600) / 60), remaining % 60].map((n, i) => '<span class="clock-unit"><strong>' + String(n).padStart(2, '0') + '</strong><small>' + ['horas','minutos','segundos'][i] + '</small></span>').join('<i>:</i>') : '<span class="clock-live-dot" aria-hidden="true"></span>';
     }
   }
+  let pollState = null;
+  function latestTseRecord(snapshot) {
+    const r2 = snapshot && snapshot.pres && snapshot.pres.r2 || {};
+    let best = null, bestTime = -1;
+    for (const uf of PRESIDENT_UFS) { const r = r2[uf]; const t = r ? resultTime(r) : 0; if (r && t > bestTime) { best = r; bestTime = t; } }
+    return best;
+  }
+  function tseStamp(r) {
+    const m = r && String(r.dg || '').match(/^(\d{2})\/(\d{2})/);
+    return m ? m[1] + '/' + m[2] + ' ' + String(r.hg || '').slice(0, 5) : null;
+  }
+  function tseStripMarkup() {
+    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checando TSE…</span><p class="tse-note" id="tse-note" hidden></p></div>';
+  }
+  function updateTseStrip(nowArg) {
+    if (typeof document === 'undefined' || !$('tse-gen')) return;
+    const snapshot = typeof window !== 'undefined' ? window.currentElectionSnapshot : null;
+    if (!snapshot) return;
+    const now = nowArg == null ? Date.now() : nowArg;
+    $('tse-gen').innerHTML = 'TSE atualizou<span class="tse-long"> pela última vez</span>: <b>' + safeText(tseStamp(latestTseRecord(snapshot)) || '—') + '</b>';
+    const next = $('tse-next');
+    if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Checando o TSE agora…' : 'Próxima checagem em ' + Math.max(0, Math.ceil((REFRESH_MS - (now - pollState.lastUpdated)) / 1000)) + 's';
+    else next.textContent = 'Checando o TSE…';
+    const note = $('tse-note'), waiting = isAwaiting(snapshot);
+    note.hidden = !waiting;
+    if (waiting) note.textContent = now < COUNTING_START ? 'O TSE só divulga resultados a partir das 17h (Brasília), inclusive do Exterior.' : 'Urnas fechadas: aguardando a primeira divulgação do TSE (inclusive do Exterior).';
+  }
+  function turnCompareMarkup(snapshot, uf) {
+    const key = uf && snapshot.pres.r1[uf] ? uf : 'br';
+    const r1 = snapshot.pres.r1[key], r2 = snapshot.pres.r2[key];
+    const votes = (r) => r && Array.isArray(r.cands) ? r.cands.reduce((sum, c) => sum + (Number(c.v) || 0), 0) : 0;
+    const counting = !!r2 && Number(r2.pst) > 0 && votes(r2) > 0;
+    const num = (v) => v != null && Number.isFinite(Number(v)) ? Number(v) : null;
+    const votesText = (x) => x == null ? '—' : '<span class="tc-full">' + fmtNumber.format(x) + '</span><span class="tc-short">' + (x >= 1e6 ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(x / 1e6) + ' mi' : x >= 1e3 ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(x / 1e3) + ' mil' : fmtNumber.format(x)) + '</span>';
+    const row = (n, name, color) => {
+      const c1 = candidateByNumber(r1, n), c2 = candidateByNumber(r2, n);
+      const p1 = num(c1 && c1.p), v1 = num(c1 && c1.v), p2 = num(c2 && c2.p), v2 = num(c2 && c2.v);
+      const delta = counting && p1 != null && p2 != null ? p2 - p1 : null;
+      return '<div class="tc-row tc-' + color + '" data-tc="' + n + '"><span class="tc-name">' + name + '</span>' +
+        '<span class="tc-first"><small>1º</small> <b>' + pct(p1) + '</b> <em>' + votesText(v1) + '</em></span>' +
+        '<span class="tc-arrow" aria-hidden="true">→</span>' +
+        '<span class="tc-now"><small>agora</small> ' + (counting ? '<b>' + pct(p2) + '</b> <em>' + votesText(v2) + '</em>' : '<b class="tc-wait">aguardando</b>') + '</span>' +
+        '<span class="tc-delta' + (delta > 0 ? ' up' : delta < 0 ? ' down' : '') + '">' + (delta == null ? '—' : (delta > 0 ? '▲ +' : delta < 0 ? '▼ −' : '= ') + fmtPercent.format(Math.abs(delta)) + ' p.p.') + '</span></div>';
+    };
+    return '<div class="turn-compare" id="turn-compare" data-scope="' + key + '"><div class="tc-head"><strong>2º turno × 1º turno</strong><span class="tc-scope">' + (key === 'br' ? 'Brasil · % dos votos válidos' : safeText(UF_NAMES[key]) + ' <button type="button" class="tc-reset" data-tc-reset>Brasil ✕</button>') + '</span></div>' + row('13', 'Lula', 'lula') + row('22', 'Flávio', 'flavio') + '</div>';
+  }
+  function refreshTurnCompare() {
+    const node = typeof document !== 'undefined' ? $('turn-compare') : null;
+    const snapshot = typeof window !== 'undefined' ? window.currentElectionSnapshot : null;
+    if (node && snapshot) node.outerHTML = turnCompareMarkup(snapshot, selectedUf);
+  }
   function render(snapshot, chanceStale) {
     if (!snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2 || !snapshot.gov || !snapshot.gov.r2) throw new Error('Formato de resultados inválido');
     if (typeof window !== 'undefined') window.currentElectionSnapshot = snapshot;
     liveSnapshot = snapshot;
     const pres1 = snapshot.pres.r1.br;
     const pres2 = snapshot.pres.r2.br;
-    $('pres-cards').innerHTML = presidentialComparison(pres1, pres2);
+    const scoreboard = presidentialComparison(pres1, pres2).replace('<section class="pres-scoreboard"', '<section class="pres-scoreboard' + (isAwaiting(snapshot) ? ' is-awaiting' : '') + '"');
+    $('pres-cards').innerHTML = tseStripMarkup() + scoreboard.replace(/<\/section>$/, turnCompareMarkup(snapshot, selectedUf) + '</section>');
+    updateTseStrip();
     animateScoreTotal();
     updateChance(snapshot, !!chanceStale);
     $('pres-projection').innerHTML = projectionMarkup(snapshot);
@@ -750,6 +812,7 @@
       const br = state.snapshot.pres.r2.br;
       const time = br && br.dg && br.hg ? br.dg + ' ' + br.hg + ' (Brasília)' : 'horário indisponível';
       $('pres-update').textContent = 'Última atualização TSE: ' + time + ' · atualiza em ' + Math.max(0, Math.ceil((cadenceMs - (now() - state.lastUpdated)) / 1000)) + 's';
+      updateTseStrip();
     }
     async function get(url) {
       const response = await withTimeout(Promise.resolve().then(() => fetcher(url, { cache: 'no-store' })), timeoutMs, timers);
@@ -955,9 +1018,12 @@
       electionModel = model;
       render(snapshot);
       const poller = startPolling(snapshot);
+      pollState = poller.state;
+      document.addEventListener('click', (event) => { if (event.target.closest && event.target.closest('[data-tc-reset]')) closeUfDetail(false); });
       const timer = typeof setInterval === 'function' ? setInterval(() => {
         if (typeof document !== 'undefined' && $('pres-update')) {
           updateWaiting(poller.state.snapshot);
+          updateTseStrip();
           const elapsed = Date.now() - poller.state.lastUpdated;
           $('pres-update').textContent = 'Última atualização TSE: ' + (poller.state.snapshot.pres.r2.br.dg || '—') + ' ' + (poller.state.snapshot.pres.r2.br.hg || '') + ' (Brasília) · atualiza em ' + Math.max(0, Math.ceil((30000 - elapsed) / 1000)) + 's';
         }
