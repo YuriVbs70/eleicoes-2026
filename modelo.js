@@ -69,7 +69,12 @@
     // O choque nacional durante a apuração acompanha o swing observado ponderado por votos válidos.
     let swingWeight = 0, swingTotal = 0;
     for (const r of rows) if (r.observed) { swingWeight += r.E; swingTotal += r.E * (r.observedShare - r.base); }
-    const center = swingWeight ? swingTotal / swingWeight : 0;
+    const rawCenter = swingWeight ? swingTotal / swingWeight : 0;
+    // Encolhimento: o swing observado só pesa na proporção dos votos já contados no país (k = Σ E·q / Σ E).
+    // Sem isso, poucas seções (ex.: só o Exterior) ditariam 100%/0% para o Brasil inteiro.
+    const totalE = rows.reduce((s, r) => s + r.E, 0);
+    const k = totalE ? rows.reduce((s, r) => s + r.E * r.q, 0) / totalE : 0;
+    const center = rawCenter * (k / (k + 0.05));
 
     // Quando todas as abrangências estão em 100%, os votos observados são o resultado final.
     if (rows.every(r => r.observed && r.q === 1)) {
