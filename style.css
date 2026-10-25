@@ -631,3 +631,14 @@ html[data-theme="light"] .urna-bar { background:#e3e5f2; }
   #pres-chance.has-urna .urna-panel { padding:7px 11px; }
   #pres-chance.has-urna .urna-title { margin:1px 0 3px; font-size:.9rem; }
 }
+/* Aviso sobreposto: não participa do layout nem intercepta o painel. */
+.aviso-host { position:fixed; top:66px; left:50%; transform:translateX(-50%); width:min(92vw,420px); z-index:10000; pointer-events:none; }
+.aviso-toast { --aviso-color:var(--flavio); display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-left:3px solid var(--aviso-color); border-radius:12px; background:var(--panel); color:var(--text); box-shadow:0 8px 24px rgb(0 0 0 / 20%); font-size:.78rem; line-height:1.4; opacity:1; transition:opacity .25s ease; animation:aviso-pulse .85s ease-in-out 2; }
+.aviso-lula { --aviso-color:var(--lula); }
+.aviso-toast span { flex:1; min-width:0; overflow-wrap:anywhere; }
+.aviso-toast button { flex:none; width:30px; height:30px; padding:0; border:1px solid var(--line); border-radius:8px; background:var(--panel-soft); color:var(--text); font-size:1.2rem; line-height:1; cursor:pointer; pointer-events:auto; }
+.aviso-toast.is-leaving { opacity:0; animation:none; pointer-events:none; }
+.aviso-toast.is-leaving button { pointer-events:none; }
+@keyframes aviso-pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.03); box-shadow:0 0 0 6px color-mix(in srgb, var(--aviso-color) 35%, transparent), 0 8px 24px rgb(0 0 0 / 20%); } }
+.aviso-toast span { font-weight:700; }
+@media(prefers-reduced-motion:reduce) { .aviso-toast { animation:none; transition:none; } }

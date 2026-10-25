@@ -39,6 +39,91 @@
   let lastChance = null;
   let lastChanceStale = false;
 
+  // Estados independentes do DOM: só uma segunda observação confirma a transição.
+  function avisoLider(state, { lula, flavio }) {
+    const valid = Number.isFinite(lula) && Number.isFinite(flavio) && lula >= 0 && flavio >= 0;
+    const total = valid ? lula + flavio : 0;
+    const leader = total > 0 && lula !== flavio ? (lula > flavio ? 'Lula' : 'Flávio') : null;
+    if (!state) return { state: { leader, pending: null }, msg: null };
+    if (!leader || Math.abs(lula - flavio) * 100 < total * 0.1 || leader === state.leader) {
+      return { state: { ...state, pending: null }, msg: null };
+    }
+    // Sem líder anterior (empate/zero inicial), a primeira liderança só estabelece a base.
+    if (!state.leader) return { state: { leader, pending: null }, msg: null };
+    if (state.pending !== leader) return { state: { ...state, pending: leader }, msg: null };
+    return { state: { leader, pending: null }, msg: 'Virada! ' + leader + ' passa à frente' };
+  }
+  function avisoChance(state, pt) {
+    if (!Number.isFinite(pt) || pt < 0 || pt > 100) {
+      return { state: state ? { lula: { ...state.lula, pending: null }, flavio: { ...state.flavio, pending: null } } : state, msg: null };
+    }
+    const rawBand = (p) => p >= 90 ? 2 : p >= 75 ? 1 : 0;
+    if (!state) return { state: { lula: { band: rawBand(pt), pending: null }, flavio: { band: rawBand(100 - pt), pending: null } }, msg: null };
+    let msg = null;
+    const next = (previous, p, name) => {
+      // Uma faixa confirmada só é abandonada 1 p.p. abaixo do seu limite.
+      const band = previous.band === 2 && p >= 89 ? 2 : previous.band >= 1 && p >= 74 ? Math.max(1, rawBand(p)) : rawBand(p);
+      if (band === previous.band) return { band, pending: null };
+      if (previous.pending !== band) return { ...previous, pending: band };
+      if (band > previous.band) msg = 'Chance de ' + name + ' passa de ' + (band === 2 ? 90 : 75) + '%';
+      return { band, pending: null };
+    };
+    const lula = next(state.lula, pt, 'Lula');
+    const flavio = next(state.flavio, 100 - pt, 'Flávio');
+    return { state: { lula, flavio }, msg };
+  }
+
+  let avisoLiderState = null, avisoChanceState = null;
+  const avisoQueue = [];
+  let avisoHost = null, avisoActive = false;
+  function showAviso(msg) {
+    if (!msg || typeof document === 'undefined') return;
+    if (avisoActive) { if (avisoQueue.length < 2) avisoQueue.push(msg); return; }
+    if (!avisoHost) {
+      avisoHost = document.createElement('div');
+      avisoHost.className = 'aviso-host';
+      avisoHost.setAttribute('role', 'status');
+      avisoHost.setAttribute('aria-live', 'polite');
+      avisoHost.setAttribute('aria-atomic', 'true');
+      document.body.appendChild(avisoHost);
+    }
+    const header = document.querySelector('.site-header');
+    avisoHost.style.top = Math.max(8, header ? header.getBoundingClientRect().bottom + 8 : 66) + 'px';
+    const toast = document.createElement('div');
+    toast.className = 'aviso-toast ' + (msg.includes('Lula') ? 'aviso-lula' : 'aviso-flavio');
+    const label = document.createElement('span');
+    label.textContent = msg;
+    const close = document.createElement('button');
+    close.type = 'button'; close.textContent = '×';
+    close.setAttribute('aria-label', 'Fechar aviso');
+    toast.append(label, close);
+    avisoActive = true;
+    let closing = false;
+    const dismiss = () => {
+      if (closing) return;
+      closing = true; clearTimeout(timer);
+      toast.classList.add('is-leaving');
+      setTimeout(() => {
+        toast.remove(); avisoActive = false;
+        if (avisoQueue.length) showAviso(avisoQueue.shift());
+      }, prefersReducedMotion() ? 0 : 250);
+    };
+    const timer = setTimeout(dismiss, 7000);
+    close.addEventListener('click', dismiss);
+    avisoHost.appendChild(toast);
+  }
+  function observeAvisoLider(snapshot) {
+    const national = officialView(snapshot).pres.r2.br;
+    const lula = candidateByNumber(national, '13'), flavio = candidateByNumber(national, '22');
+    const result = avisoLider(avisoLiderState, { lula: num(lula && lula.v), flavio: num(flavio && flavio.v) });
+    avisoLiderState = result.state; showAviso(result.msg);
+  }
+  function setupAvisoTest() {
+    if (new URLSearchParams(window.location.search).get('aviso') !== 'teste') return;
+    setTimeout(() => showAviso('Virada! Lula passa à frente'), 2000);
+    setTimeout(() => showAviso('Chance de Flávio passa de 90%'), 4000);
+  }
+
   function chanceMarkup(result, timestamp, stale) {
     if (!result || !result.available || !Number.isFinite(result.pt) || !Number.isFinite(result.opositor)) {
       return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO</p><h2>Chance de vitória</h2></div></div><p class="muted">' + safeText(result && result.reason || 'Chance de vitória calculada no navegador com o modelo local.') + '</p></section>';
@@ -73,7 +158,11 @@
       try {
         const result = globalThis.EleicoesModelo.simulate(electionModel, snapshot, { simulations: 5000, bu: puChanceBu ? puEvid : null });
         if (version !== chanceVersion) return;
-        if (result && result.available) lastChance = { result, timestamp: Date.now() };
+        if (result && result.available) {
+          lastChance = { result, timestamp: Date.now() };
+          const aviso = avisoChance(avisoChanceState, result.pt);
+          avisoChanceState = aviso.state; showAviso(aviso.msg);
+        }
         lastChanceStale = !!stale || !result || !result.available;
         target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, lastChanceStale); puAttach(target);
         twApply(target);
@@ -1031,6 +1120,7 @@
       state.source = failures.size === 0 && settled.every((x) => !x.error) ? 'live' : 'reserva';
       state.lastUpdated = now();
       if (settled.some((x) => x.job.kind === 'pres' && x.job.uf === 'br' && !x.error)) recordLiveSnapshot(state.snapshot, oldBrProgress);
+      if (settled.some((x) => x.job.kind === 'pres' && x.job.uf === 'br' && !x.error)) observeAvisoLider(state.snapshot);
       try { render(state.snapshot, failures.size > 0); } catch (err) { console.error("render falhou", err && err.stack || err); }
       const toast = typeof document !== 'undefined' ? $('tse-toast') : null;
       if (toast) { toast.hidden = failures.size === 0; }
@@ -1194,6 +1284,7 @@
       if (!model || !model.abrangencias || !model.nacional) throw new Error('Parâmetros estatísticos inválidos');
       electionModel = model;
       render(snapshot);
+      observeAvisoLider(snapshot);
       const poller = startPolling(snapshot);
       pollState = poller.state; if (typeof fetch === 'function' && typeof setTimeout === 'function' && typeof window !== 'undefined' && window.location && /^https?:/.test(window.location.protocol)) { refreshBu(); try { refreshPu(); } catch (e) { console.warn('projeção por urna', e); } }
       document.addEventListener('click', (event) => { if (event.target.closest && event.target.closest('[data-tc-reset]')) closeUfDetail(false); });
@@ -1285,6 +1376,6 @@
     window.addEventListener('scroll', () => { scrollY = window.scrollY || 0; schedule(); }, { passive: true });
     schedule();
   }
-  if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => { setupTabs(); setupUfControls(); setupPreferences(); setupDepthEffects(); loadInitial(); });
-  if (typeof module !== 'undefined' && module.exports) module.exports = { render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, puMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
+  if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => { setupTabs(); setupUfControls(); setupPreferences(); setupDepthEffects(); setupAvisoTest(); loadInitial(); });
+  if (typeof module !== 'undefined' && module.exports) module.exports = { avisoLider, avisoChance, render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, puMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
 }());
