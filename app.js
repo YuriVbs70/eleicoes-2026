@@ -788,8 +788,11 @@
     const now = nowArg == null ? Date.now() : nowArg;
     $('tse-gen').innerHTML = 'TSE atualizou<span class="tse-long"> pela última vez</span>: <b>' + safeText(tseStamp(latestTseRecord(snapshot)) || '—') + '</b>';
     const next = $('tse-next');
-    if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Checando o TSE agora…' : 'Próxima checagem em ' + Math.max(0, Math.ceil((REFRESH_MS - (now - pollState.lastUpdated)) / 1000)) + 's';
+    const stale = pollState && pollState.lastGood && now - pollState.lastGood > 3 * REFRESH_MS;
+    const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+    if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Checando o TSE agora…' : (stale ? 'TSE instável · dados de ' + hm(pollState.lastGood) + ' · ' : '') + 'Próxima checagem em ' + Math.max(0, Math.ceil(((REFRESH_MS * (1 + (pollState.skip || 0))) - (now - pollState.lastUpdated)) / 1000)) + 's';
     else next.textContent = 'Checando o TSE…';
+    next.classList.toggle('is-stale', !!stale);
     const note = $('tse-note'), waiting = isAwaiting(snapshot);
     note.hidden = !waiting;
     if (waiting) note.textContent = now < COUNTING_START ? 'O TSE só divulga resultados a partir das 17h (Brasília), inclusive do Exterior.' : 'Urnas fechadas: aguardando a primeira divulgação do TSE (inclusive do Exterior).';
@@ -895,8 +898,10 @@
       if (!validResult(result)) throw new Error('resultado inválido');
       return result;
     }
-    async function refresh() {
+    async function refresh(force) {
       if (state.busy) return;
+      // Backoff: depois de rodadas com maioria de erros (TSE lento/429/5xx), pula ciclos e mantém o último dado bom.
+      if (!force && state.skip > 0) { state.skip -= 1; return; }
       state.busy = true;
       const jobs = [];
       PRESIDENT_UFS.forEach((uf) => jobs.push({ kind: 'pres', uf }));
@@ -937,6 +942,11 @@
           failures.add(job.uf.toUpperCase());
         }
       });
+      const errCount = settled.filter((x) => x.error).length;
+      state.backoff = errCount > jobs.length / 2 ? Math.min(4, (state.backoff || 0) + 1) : 0;
+      state.skip = state.backoff;
+      if (errCount) { try { console.warn('TSE: ' + errCount + '/' + jobs.length + ' arquivos falharam; ' + (state.backoff ? 'próximas ' + state.backoff + ' checagens puladas' : 'mantendo último dado bom'), settled.filter((x) => x.error).slice(0, 3).map((x) => x.job.uf + ': ' + (x.error && x.error.message))); } catch (_) {} }
+      if (settled.some((x) => x.job.kind === 'pres' && x.job.uf === 'br' && !x.error)) state.lastGood = now();  // idade do número principal (Brasil)
       state.failures = failures;
       state.source = failures.size === 0 && settled.every((x) => !x.error) ? 'live' : 'reserva';
       state.lastUpdated = now();
@@ -948,9 +958,10 @@
       state.busy = false;
       return state;
     }
-    const initialRefresh = refresh();
-    const interval = timers.setInterval(refresh, cadenceMs);
-    return { state, refresh, initialRefresh, stop: () => timers.clearInterval(interval) };
+    const initialRefresh = refresh(true);
+    const interval = timers.setInterval(() => refresh(false), cadenceMs);
+    if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && now() - state.lastUpdated > cadenceMs) refresh(true); });
+    return { state, refresh: () => refresh(true), initialRefresh, stop: () => timers.clearInterval(interval) };
   }
   function regionalCard(name, ufs, snapshot) {
     const waiting = isAwaiting(snapshot);
