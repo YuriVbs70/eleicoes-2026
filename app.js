@@ -12,7 +12,6 @@
   const $ = (id) => document.getElementById(id);
   const LIVE_BASE = 'https://resultados.tse.jus.br/oficial/ele2026/';
   const PRESIDENT_UFS = ['br','ac','al','ap','am','ba','ce','df','es','go','ma','mt','ms','mg','pa','pb','pr','pe','pi','rj','rn','rs','ro','rr','sc','sp','se','to','zz'];
-  const GOVERNOR_UFS = ['ac','am','df','es','rn','to'];
   const REFRESH_MS = 30000;
   const COUNTING_START = Date.parse('2026-10-25T17:00:00-03:00');
   const REGION_UFS = { Norte:['ac','am','ap','pa','ro','rr','to'], Nordeste:['al','ba','ce','ma','pb','pe','pi','rn','se'], 'Centro-Oeste':['df','go','ms','mt'], Sudeste:['es','mg','rj','sp'], Sul:['pr','rs','sc'], Exterior:['zz'] };
@@ -271,32 +270,6 @@
     const names = candidates.map((c) => safeText(c.nm || 'Candidato') + ' <strong>' + pct(c.p) + '</strong>').join('<br>');
     return '<article class="region-card"><div class="region-heading"><h3>' + safeText(UF_NAMES[uf] || uf.toUpperCase()) + '</h3><span>' + progress + ' apurado</span></div><p>' + (names || '<span class="muted">Dados indisponíveis</span>') + '</p><small>' + safeText(turn) + '</small></article>';
   }
-  function governorCard(uf, firstResult, secondResult, waitingState) {
-    const national = typeof window !== 'undefined' && window.currentElectionSnapshot && window.currentElectionSnapshot.pres.r2.br;
-    const awaiting = waitingState == null ? isAwaiting({ pres: { r2: { br: national } } }) : !!waitingState;
-    const title = UF_NAMES[uf] || uf.toUpperCase();
-    if (!secondResult || secondResult.erro) {
-      const reason = secondResult && secondResult.erro ? String(secondResult.erro) : 'Resultado indisponível';
-      return '<article class="region-card governor-card"><div class="region-heading"><h3>' + safeText(title) + '</h3><span>indisponível</span></div><p class="muted governor-unavailable">' + safeText(reason) + '</p><small>2º turno</small></article>';
-    }
-    const finalists = Array.isArray(secondResult.cands) ? secondResult.cands.slice(0, 2) : [];
-    if (finalists.length !== 2) return '<article class="region-card governor-card"><div class="region-heading"><h3>' + safeText(title) + '</h3><span>' + pct(secondResult.pst) + ' apurado</span></div><p class="muted governor-unavailable">Finalistas do 2º turno indisponíveis</p><small>2º turno</small></article>';
-    const firstCandidates = firstResult && Array.isArray(firstResult.cands) ? firstResult.cands : [];
-    const cards = finalists.map((candidate) => {
-      const first = firstCandidates.find((item) => String(item.n) === String(candidate.n)) || null;
-      const opponent = firstCandidates.find((item) => String(item.n) !== String(candidate.n) && finalists.some((finalist) => String(finalist.n) === String(item.n))) || null;
-      const stats = comparisonData(first, opponent, candidate);
-      const firstPct = first && Number.isFinite(Number(first.p)) ? Number(first.p) : NaN;
-      const currentPct = Number.isFinite(Number(candidate.p)) ? Number(candidate.p) : NaN;
-      const progress = Math.max(0, Math.min(100, Number(secondResult.pst) || 0));
-      return '<section class="gov-finalist"><div class="gov-finalist-heading"><span class="candidate-number">' + safeText(candidate.n || '—') + '</span><div><h4>' + safeText(candidate.nm || 'Candidato') + '</h4><small>' + safeText(candidate.sg || 'Partido não informado') + '</small></div><span class="progress-ring" style="--progress:' + progress + '%" aria-label="' + pct(progress) + ' das seções totalizadas"><span>' + pct(progress) + '</span><small>apurado</small></span></div>' +
-        '<p class="gov-now"' + (awaiting ? ' data-first-turn-comparison' : '') + '>' + (awaiting ? pct(firstPct) : pct(currentPct)) + ' <small>' + (awaiting ? '· 1º turno' : '· ' + displayOrDash(candidate.v, (n) => fmtNumber.format(n)) + ' votos') + '</small></p>' +
-        '<div class="comparison-turns" data-first-turn-comparison><div><span>1º turno</span><strong>' + pct(firstPct) + '</strong><small>' + displayOrDash(first && first.v, (n) => fmtNumber.format(n)) + ' votos</small></div><div><span>2º turno</span><strong>' + (awaiting ? 'sem apuração ainda' : pct(currentPct)) + '</strong><small>' + (awaiting ? '0 votos' : displayOrDash(candidate.v, (n) => fmtNumber.format(n)) + ' votos') + '</small></div></div>' +
-        (awaiting ? '' : '<p class="comparison-delta" data-first-turn-comparison>Variação vs. base bilateral: <strong>' + displayOrDash(stats && stats.delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</strong><br><span>vs. percentual bruto do 1º turno: ' + displayOrDash(stats && stats.rawDelta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.') + '</span> · votos: <strong>' + displayOrDash(stats && stats.votesDelta, (n) => (n > 0 ? '+' : '') + fmtNumber.format(n)) + '</strong></p>') +
-        '<div class="turn-bars" data-first-turn-comparison><div class="turn-bar-row"><span>1º</span><div class="turn-bar"><i style="width:' + (Number.isFinite(firstPct) ? Math.max(0, Math.min(100, firstPct)) : 0) + '%"></i></div><b>' + pct(firstPct) + '</b></div><div class="turn-bar-row"><span>2º</span><div class="turn-bar"><i style="width:' + (Number.isFinite(currentPct) ? Math.max(0, Math.min(100, currentPct)) : 0) + '%"></i></div><b>' + pct(currentPct) + '</b></div></div></section>';
-    }).join('');
-    return '<article class="region-card governor-card"><div class="region-heading"><h3>' + safeText(title) + '</h3><span>' + pct(secondResult.pst) + ' apurado</span></div><div class="gov-finalists">' + cards + '</div><small data-first-turn-comparison>Comparação de cada finalista com o 1º turno</small></article>';
-  }
   function projection(snapshot) {
     const br = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2.br;
     if (!br || Number(br.pst) === 0) return { available: false, reason: 'A estimativa aparece quando começar a apuração nacional.' };
@@ -353,7 +326,6 @@
   const UF_ORDER = ['ac','al','am','ap','ba','ce','df','es','go','ma','mt','ms','mg','pa','pb','pr','pe','pi','rj','rn','rs','ro','rr','sc','sp','se','to','zz'];
   const ufSort = { key: 'uf', direction: 1 };
   let mapMode = preferences.mapMode;
-  let disputeMode = 'president';
   let mapSvgPromise = null;
   let selectedUf = null;
   let openAnalysisPanel = null;
@@ -433,36 +405,23 @@
     if (row.waiting || row.pst <= 0 || row.swing == null) return 'neutral';
     return row.swing < -0.01 ? 'negative' : row.swing > 0.01 ? 'positive' : 'near-zero';
   }
-  function ufDetail(row) {
+  function ufDetail(row, snapshot) {
+    const result = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2[row.uf];
+    const urnas = validResult(result) && Number(result.st) > 0 && !(row.uf === 'zz' && result.bu) ? '<p>Urnas apuradas: ' + tw('ufd-st-' + row.uf, result.st, 'int') + '/' + fmtNumber.format(result.ts) + '</p>' : '';
     const swing = row.waiting || row.pst <= 0 || row.swing == null ? 'sem apuração ainda' : (row.swing > 0 ? '+' : '') + fmtPercent.format(row.swing) + ' p.p. de Flávio';
     const leader = row.leader === '22' ? 'Flávio' : row.leader === '13' ? 'Lula' : row.pst > 0 ? 'empate' : row.waiting ? '1º turno' : 'sem apuração';
-    const president = '<div><h4>Presidente</h4><p>Apurado <strong>' + pct(row.pst) + '</strong></p><p data-first-turn-comparison>1º turno bruto <strong>Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) + '</strong></p><p data-first-turn-comparison>1º turno bilateral <strong>Flávio ' + pct(row.bilateralA) + ' · Lula ' + pct(row.bilateralA == null ? null : 100 - row.bilateralA) + '</strong></p><p>Agora <strong>' + (row.waiting || row.pst <= 0 ? 'sem apuração ainda' : 'Flávio ' + pct(row.nowA) + ' · Lula ' + pct(row.nowB)) + '</strong></p><p data-first-turn-comparison>Swing <strong>' + swing + '</strong></p></div>';
-    const governor = '<div class="uf-governor-detail" data-governor-uf="' + safeText(row.uf) + '">' + (GOVERNOR_UFS.includes(row.uf) ? '' : '<h4>Governador</h4><p>Esta abrangência não tem disputa estadual de 2º turno.</p>') + '</div>';
+    const president = '<div><h4>Presidente</h4><p>Apurado <strong>' + pct(row.pst) + '</strong></p>' + urnas + '<p data-first-turn-comparison>1º turno bruto <strong>Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) + '</strong></p><p data-first-turn-comparison>1º turno bilateral <strong>Flávio ' + pct(row.bilateralA) + ' · Lula ' + pct(row.bilateralA == null ? null : 100 - row.bilateralA) + '</strong></p><p>Agora <strong>' + (row.waiting || row.pst <= 0 ? 'sem apuração ainda' : 'Flávio ' + pct(row.nowA) + ' · Lula ' + pct(row.nowB)) + '</strong></p><p data-first-turn-comparison>Swing <strong>' + swing + '</strong></p></div>';
     return '<div class="uf-detail-heading"><div><p class="eyebrow">DETALHE DA ABRANGÊNCIA</p><h3>' + safeText(row.name) + ' <span>(' + row.uf.toUpperCase() + ')</span></h3></div><button type="button" id="uf-detail-close" aria-label="Fechar detalhe">×</button></div>' +
       '<p class="uf-detail-leader">' + (row.waiting || !(row.pst > 0) ? 'Sem apuração do 2º turno ainda · no 1º turno: Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) : safeText(leader) + ' lidera') + '</p>' +
-      (disputeMode === 'governor' ? governor : '<div class="uf-detail-grid">' + president + governor + '</div>');
+      '<div class="uf-detail-grid">' + president + '</div>';
   }
   function ufTooltip(row, snapshot) {
+    const result = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2[row.uf];
+    const urnas = validResult(result) && Number(result.st) > 0 && !(row.uf === 'zz' && result.bu) ? ' · Urnas apuradas: ' + fmtNumber.format(result.st) + '/' + fmtNumber.format(result.ts) : '';
     const color = mapColor(row, mapMode);
     const basis = Number(row.pst) === 0 ? 'no 1º turno: Flávio ' + pct(row.firstA) + ' · Lula ' + pct(row.firstB) : 'base: 2º turno';
     const value = color.value == null ? (Number(row.pst) === 0 || row.waiting ? 'sem apuração ainda' : 'sem dados') : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : pct(color.value);
-    return row.name + ' · ' + color.state + ' · ' + basis + ' · ' + value;
-  }
-  function governorDetail(uf, snapshot) {
-    if (!GOVERNOR_UFS.includes(uf)) return '';
-    const first = snapshot.gov && snapshot.gov.r1 && snapshot.gov.r1[uf];
-    const second = snapshot.gov && snapshot.gov.r2 && snapshot.gov.r2[uf];
-    if (!second || second.erro) return '<h4>Governador</h4><p>Dados indisponíveis.</p>';
-    const finals = Array.isArray(second.cands) ? second.cands.slice().sort((a,b) => Number(b.v || 0) - Number(a.v || 0)).slice(0, 2) : [];
-    if (finals.length !== 2) return '<h4>Governador</h4><p>Finalistas indisponíveis.</p>';
-    const waiting = isAwaiting(snapshot);
-    const fc = first && Array.isArray(first.cands) ? first.cands : [];
-    return '<h4>Governador · ' + pct(second.pst) + ' apurado</h4>' + finals.map((candidate) => {
-      const base = fc.find((item) => String(item.n) === String(candidate.n));
-      const opponent = fc.find((item) => String(item.n) !== String(candidate.n) && finals.some((f) => String(f.n) === String(item.n)));
-      const stats = comparisonData(base, opponent, candidate);
-      return '<article class="uf-gov-finalist"><strong>' + safeText(candidate.nm || 'Candidato') + ' (' + safeText(candidate.sg || '—') + ')</strong><p data-first-turn-comparison>1º turno bruto ' + pct(base && base.p) + ' · base bilateral ' + displayOrDash(stats && stats.bilateral, pct) + '</p><p>Agora ' + (waiting || Number(second.pst) <= 0 ? 'sem apuração ainda' : pct(candidate.p)) + ' · <span data-first-turn-comparison>swing ' + (waiting || Number(second.pst) <= 0 ? 'sem apuração ainda' : displayOrDash(stats && stats.delta, (n) => (n > 0 ? '+' : '') + fmtPercent.format(n) + ' p.p.')) + '</span></p></article>';
-    }).join('');
+    return row.name + ' · ' + color.state + ' · ' + basis + ' · ' + value + urnas;
   }
   function showUfDetail(uf, trigger, snapshotArg) {
     const snapshot = snapshotArg || (typeof window !== 'undefined' ? window.currentElectionSnapshot : null);
@@ -476,10 +435,8 @@
       if (mobileSheet && panel.parentElement !== document.body) document.body.appendChild(panel);
       else if (!mobileSheet && panel.parentElement === document.body && panel.__home.parent) panel.__home.parent.insertBefore(panel, panel.__home.next && panel.__home.next.parentElement === panel.__home.parent ? panel.__home.next : null);
     }
-    panel.innerHTML = ufDetail(row);
+    panel.innerHTML = ufDetail(row, snapshot);
     if (uf === 'zz' && buZZ) { const head = panel.querySelector('.uf-detail-leader'); const html = buDetailMarkup(snapshot && snapshot.__zzOfficial); if (head) head.insertAdjacentHTML('afterend', html); else panel.insertAdjacentHTML('beforeend', html); }
-    const governor = panel.querySelector('.uf-governor-detail');
-    if (governor && GOVERNOR_UFS.includes(uf)) governor.innerHTML = governorDetail(uf, snapshot);
     panel.querySelectorAll('[data-first-turn-comparison]').forEach((node) => { node.hidden = !preferences.showComparison; });
     twApply(panel);
     panel.dataset.open = 'true';
@@ -555,13 +512,13 @@
         const uf = path.id.toLowerCase();
         const row = rows.find((item) => item.uf === uf);
         if (!row) return;
-        const color = disputeMode === 'governor' ? (GOVERNOR_UFS.includes(uf) ? governorMapColor(uf, snapshot) : { fill:'#35384d', value:null, state:'sem disputa estadual' }) : mapColor(row, mapMode);
+        const color = mapColor(row, mapMode);
         path.setAttribute('class', 'uf-region ' + (mapMode === 'swing' ? swingClass(row) : 'leader-' + (row.leader || 'neutral')));
         path.style.setProperty('--uf-fill', color.fill);
         path.setAttribute('aria-label', UF_NAMES[uf] + ', ' + color.state + (color.value == null ? '' : ', ' + (mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' pontos percentuais' : pct(color.value))));
         path.setAttribute('role', 'button');
         path.setAttribute('tabindex', '0');
-        const label = disputeMode === 'governor' ? UF_NAMES[uf] + (GOVERNOR_UFS.includes(uf) ? ' · disputa para governador' : ' · sem disputa estadual') : ufTooltip(row, snapshot);
+        const label = ufTooltip(row, snapshot);
         path.setAttribute('aria-label', label);
         path.setAttribute('title', label);
         path.setAttribute('aria-pressed', String(selectedUf === uf));
@@ -571,16 +528,6 @@
       addMapLabels(host.querySelector('svg'));
       return true;
     });
-  }
-  function governorMapColor(uf, snapshot) {
-    const result = snapshot && snapshot.gov && snapshot.gov.r2 && snapshot.gov.r2[uf];
-    const finals = result && Array.isArray(result.cands) ? result.cands.slice().sort((a,b) => Number(b.v || 0) - Number(a.v || 0)) : [];
-    if (!GOVERNOR_UFS.includes(uf) || finals.length < 2) return { fill:'#454963', value:null, state:'sem disputa estadual' };
-    const first = finals.find((candidate) => String(candidate.n) === String(finals[0].n));
-    const second = finals.find((candidate) => String(candidate.n) !== String(finals[0].n));
-    if (Number(result.pst) <= 0 || !first || !second) return { fill:'#454963', value:null, state:'sem apuração estadual ainda' };
-    const lead = Number(first.v) - Number(second.v);
-    return { fill: lead === 0 ? '#77718d' : lead > 0 ? 'rgba(49,193,232,.75)' : 'rgba(255,108,126,.75)', value:null, state: lead === 0 ? 'empate estadual' : (lead > 0 ? first.nm : second.nm) + ' lidera' };
   }
   function addMapLabels(svg) {
     if (!svg) return;
@@ -662,8 +609,8 @@
     const exterior = markup.rows.zz;
     const ext = $('uf-exterior');
     if (ext && exterior) {
-      const color = disputeMode === 'governor' ? { fill:'#35384d',value:null,state:'sem disputa estadual' } : mapColor(exterior, mapMode);
-      ext.innerHTML = '<button type="button" id="uf-exterior-trigger" class="uf-exterior-button ' + (disputeMode === 'governor' ? '' : mapMode === 'swing' ? swingClass(exterior) : 'leader-' + (exterior.leader || 'neutral')) + '" data-uf="zz" aria-pressed="' + (selectedUf === 'zz') + '" style="--uf-fill:' + color.fill + '"><strong>🌐 Exterior (ZZ)</strong><span>' + (snapshot.pres.r2.zz && snapshot.pres.r2.zz.bu && disputeMode !== 'governor' ? '<i class="bu-tag">BUs ' + tw('ext-st', snapshot.pres.r2.zz.st, 'int') + '/' + fmtNumber.format(snapshot.pres.r2.zz.ts) + '</i> ' : '') + (disputeMode === 'governor' ? 'Sem disputa estadual' : color.value == null ? (color.state === 'sem dados' ? 'Sem dados' : color.state) : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : tw('ext-p-' + mapMode, color.value, 'pct')) + '</span></button>';
+      const color = mapColor(exterior, mapMode);
+      ext.innerHTML = '<button type="button" id="uf-exterior-trigger" class="uf-exterior-button ' + (mapMode === 'swing' ? swingClass(exterior) : 'leader-' + (exterior.leader || 'neutral')) + '" data-uf="zz" aria-pressed="' + (selectedUf === 'zz') + '" style="--uf-fill:' + color.fill + '"><strong>🌐 Exterior (ZZ)</strong><span>' + (snapshot.pres.r2.zz && snapshot.pres.r2.zz.bu ? '<i class="bu-tag">BUs ' + tw('ext-st', snapshot.pres.r2.zz.st, 'int') + '/' + fmtNumber.format(snapshot.pres.r2.zz.ts) + '</i> ' : '') + (color.value == null ? (color.state === 'sem dados' ? 'Sem dados' : color.state) : mapMode === 'swing' ? (color.value > 0 ? '+' : '') + fmtPercent.format(color.value) + ' p.p.' : tw('ext-p-' + mapMode, color.value, 'pct')) + '</span></button>';
     }
     if (ext) twApply(ext);
     const chips = $('uf-chips');
@@ -732,16 +679,6 @@
     (document.querySelectorAll ? document.querySelectorAll('[data-map-mode]') : []).forEach((button) => button.addEventListener('click', () => {
       mapMode = button.dataset.mapMode;
       (document.querySelectorAll ? document.querySelectorAll('[data-map-mode]') : []).forEach((item) => { item.classList.toggle('is-active', item === button); item.setAttribute('aria-pressed', String(item === button)); });
-      renderUfs(window.currentElectionSnapshot || {});
-    }));
-    ['tab-presidente','tab-governadores'].forEach((id) => $(id).addEventListener('click', () => {
-      disputeMode = id === 'tab-governadores' ? 'governor' : 'president';
-      ['tab-presidente','tab-governadores'].forEach((other) => {
-        const active = other === id; $(other).classList.toggle('is-active', active); $(other).setAttribute('aria-pressed', String(active));
-      });
-      const title = $('ufs-title'); if (title) title.textContent = disputeMode === 'governor' ? 'Disputas para governador' : 'Liderança e swing por UF';
-      const help = document.querySelector('.ufs-help'); if (help) help.textContent = disputeMode === 'governor' ? 'O mapa destaca as seis UFs com 2º turno para governador. As demais não têm disputa estadual.' : 'No modo de liderança, a cor indica quem está à frente. O modo swing mostra a variação de Flávio contra a base bilateral do 1º turno.';
-      const mode = document.querySelector('.map-mode'); if (mode) mode.hidden = disputeMode === 'governor';
       renderUfs(window.currentElectionSnapshot || {});
     }));
   }
@@ -904,7 +841,7 @@
     if (node && snapshot) { node.outerHTML = turnCompareMarkup(snapshot, selectedUf); twApply($('turn-compare')); }
   }
   function render(snapshot, chanceStale) {
-    if (!snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2 || !snapshot.gov || !snapshot.gov.r2) throw new Error('Formato de resultados inválido');
+    if (!snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2) throw new Error('Formato de resultados inválido');
     applyBuOverlay(snapshot);
     if (typeof window !== 'undefined') window.currentElectionSnapshot = snapshot;
     liveSnapshot = snapshot;
@@ -921,7 +858,6 @@
     renderUfs(snapshot);
     $('pres-regions').innerHTML = Object.entries(REGION_UFS).map(([name, ufs]) => regionalCard(name, ufs, official)).join('');
     renderHistory();
-    $('gov-regions').innerHTML = GOVERNOR_UFS.map((uf) => governorCard(uf, snapshot.gov.r1 && snapshot.gov.r1[uf], snapshot.gov.r2[uf], isAwaiting(snapshot))).join('');
     const firstTurn = snapshot.pres.r1.br;
     $('first-turn-details').innerHTML = '<section class="data-panel"><div class="section-heading compact"><div><p class="eyebrow">RESULTADO FINAL · 1º TURNO</p><h3>Presidência</h3></div><span>' + pct(firstTurn && firstTurn.pst) + ' das seções</span></div><div class="first-turn-candidates">' + ((firstTurn && firstTurn.cands) || []).map((candidate) => '<article><strong>' + safeText(candidate.nm || 'Candidato') + ' (' + safeText(candidate.sg || '—') + ')</strong><span>' + pct(Number(candidate.p)) + '</span><small>' + fmtNumber.format(Number(candidate.v) || 0) + ' votos</small></article>').join('') + '</div></section>';
     const fa = candidateByNumber(firstTurn, '22'), fb = candidateByNumber(firstTurn, '13');
@@ -940,7 +876,7 @@
     applyPreferences();
   }
   function endpoint(kind, uf, stamp) {
-    const id = kind === 'pres' ? '6258/dados/' + uf + '/' + uf + '-c0001-e006258-u.json' : '6260/dados/' + uf + '/' + uf + '-c0003-e006260-u.json';
+    const id = '6258/dados/' + uf + '/' + uf + '-c0001-e006258-u.json';
     return LIVE_BASE + id + '?t=' + encodeURIComponent(stamp);
   }
   function validResult(r) {
@@ -990,7 +926,6 @@
       state.busy = true;
       const jobs = [];
       PRESIDENT_UFS.forEach((uf) => jobs.push({ kind: 'pres', uf }));
-      GOVERNOR_UFS.forEach((uf) => jobs.push({ kind: 'gov', uf }));
       const stamp = now();
       const settled = await Promise.all(jobs.map(async (job) => {
         try { return { job, result: await get(endpoint(job.kind, job.uf, stamp)) }; }
@@ -1004,16 +939,16 @@
             try {
               const response = await withTimeout(fetcher(src, { cache: 'no-store' }), timeoutMs, timers);
               const cand = response && response.ok ? await withTimeout(response.json(), timeoutMs, timers) : null;
-              if (cand && cand.pres && cand.pres.r2 && cand.gov && cand.gov.r2 && (!reserve || (resultTime(cand.pres.r2.br) > resultTime(reserve.pres.r2.br)))) reserve = cand;
+              if (cand && cand.pres && cand.pres.r2 && (!reserve || (resultTime(cand.pres.r2.br) > resultTime(reserve.pres.r2.br)))) reserve = cand;
             } catch (_) { /* tenta a próxima reserva */ }
           }
-          if (!reserve || !reserve.pres || !reserve.pres.r2 || !reserve.gov || !reserve.gov.r2) reserve = null;
+          if (!reserve || !reserve.pres || !reserve.pres.r2) reserve = null;
         } catch (_) { reserve = null; }
       }
       const failures = new Set();
       const oldBrProgress = Number(state.snapshot.pres.r2.br && state.snapshot.pres.r2.br.pst) || 0;
       settled.forEach(({ job, result, error }) => {
-        const key = job.kind === 'pres' ? 'pres' : 'gov';
+        const key = 'pres';
         const current = state.snapshot[key].r2[job.uf];
         if (!error && validResult(result)) {
           state.snapshot[key].r2[job.uf] = result;
@@ -1217,7 +1152,6 @@
       $('load-error').hidden = false;
       $('pres-cards').innerHTML = '';
       $('pres-regions').innerHTML = '';
-      $('gov-regions').innerHTML = '';
     }
   }
   function setupTabs() {
@@ -1292,5 +1226,5 @@
     schedule();
   }
   if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => { setupTabs(); setupUfControls(); setupPreferences(); setupDepthEffects(); loadInitial(); });
-  if (typeof module !== 'undefined' && module.exports) module.exports = { render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, GOVERNOR_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, governorCard, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, governorDetail, ufsMarkup, mapColor, mapLegend, governorMapColor, crossesMilestone, shouldAnimateMilestone, chanceMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { render, UF_NAMES, num, parseResult, startPolling, endpoint, validResult, PRESIDENT_UFS, isAwaiting, countdownText, updateWaiting, COUNTING_START, candidateByNumber, comparisonData, presidentialComparison, projection, projectionMarkup, UF_ORDER, ufRows, sortUfRows, swingClass, ufDetail, ufTooltip, ufsMarkup, mapColor, mapLegend, crossesMilestone, shouldAnimateMilestone, chanceMarkup, normalizeHistoryPoint, mergeHistory, normalizePreferences, readPreferences, PREFERENCES_KEY, DEFAULT_PREFERENCES };
 }());

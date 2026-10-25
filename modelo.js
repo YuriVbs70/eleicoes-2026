@@ -90,8 +90,11 @@
       for (const r of rows) {
         if (r.observed && r.q === 1) { ptVotes += r.fixedPT; flVotes += r.fixedFl; continue; }
         const remaining = r.E * (1 - r.q);
+        // Seções já contadas não representam o resto (ordem de apuração): o % observado só pesa aos poucos
+        // (w = q/(q+0,10)) e o resto da UF continua sujeito ao choque nacional comum, encolhendo com √(1−q).
+        const w = r.q / (r.q + 0.10);
         const share = r.observed
-          ? clamp(r.observedShare + normal(random) * r.sd * Math.sqrt(1 - r.q))
+          ? clamp(w * r.observedShare + (1 - w) * (r.base + center) + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
           : clamp(r.base + center + nationalShock + normal(random) * r.sd);
         ptVotes += r.fixedPT + remaining * share;
         flVotes += r.fixedFl + remaining * (1 - share);

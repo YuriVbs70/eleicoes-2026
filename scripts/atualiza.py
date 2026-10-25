@@ -2,12 +2,11 @@
 """Baixa resultados oficiais do TSE e atualiza snapshot.json e serie.json.
 --check valida os dados locais sem rede e sem escrita.
 """
-import json, sys, urllib.request, concurrent.futures as cf, datetime, os, math, tempfile
+import json, sys, urllib.request, concurrent.futures as cf, datetime, os, math, tempfile, copy
 
 BASE = "https://resultados.tse.jus.br/oficial/ele2026"
-PRES1, PRES2, GOV1, GOV2 = "6257", "6258", "6259", "6260"
+PRES1, PRES2 = "6257", "6258"
 UFS = "ac al am ap ba ce df es go ma mg ms mt pa pb pe pi pr rj rn ro rr rs sc se sp to".split()
-GOV_UFS = ["ac", "am", "df", "es", "rn", "to"]  # 2o turno governador (ele-c.json, eleicao 6260)
 SERIE_MAX = 300
 CANDIDATOS_SERIE = ("22", "13")
 
@@ -47,6 +46,19 @@ def fetch_all(jobs):
             try: out[j] = parse(f.result())
             except Exception as err: out[j] = {"erro": str(err)}
     return out
+
+def merge_keep_good(new_snap, old_snap):
+    """Preserva a última entrada boa em falhas, sem alterar os snapshots recebidos."""
+    snap = copy.deepcopy(new_snap)
+    kept = 0
+    for rnd, entries in snap.get("pres", {}).items():
+        for uf, value in entries.items():
+            old = (old_snap or {}).get("pres", {}).get(rnd, {}).get(uf)
+            if "erro" in value and isinstance(old, dict) and "erro" not in old:
+                entries[uf] = copy.deepcopy(old)
+                entries[uf].update(stale=True, erro_ultimo=value["erro"])
+                kept += 1
+    return snap, kept
 
 def data_dir():
     if os.environ.get("ELEICOES_DATA_DIR"): return os.path.abspath(os.environ["ELEICOES_DATA_DIR"])
@@ -176,19 +188,18 @@ def main():
             sys.exit(1)
     observed_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     jobs = [(PRES1, u, 1) for u in ["br"] + UFS + ["zz"]] + [(PRES2, u, 1) for u in ["br"] + UFS + ["zz"]]
-    jobs += [(GOV1, u, 3) for u in GOV_UFS] + [(GOV2, u, 3) for u in GOV_UFS]
     r = fetch_all(jobs)
-    snap = {"gerado": observed_at,
-            "fonte": BASE, "pres": {"r1": {}, "r2": {}}, "gov": {"r1": {}, "r2": {}}}
-    for (ele, uf, cargo), d in r.items():
-        grp = "pres" if cargo == 1 else "gov"
-        rnd = "r1" if ele in (PRES1, GOV1) else "r2"
-        snap[grp][rnd][uf] = d
     out = os.path.join(data_dir(), "snapshot.json")
     old = None
     if os.path.exists(out):
         try: old = json.load(open(out))
         except Exception: pass
+    snap = {"gerado": observed_at,
+            "fonte": BASE, "pres": {"r1": {}, "r2": {}}}
+    for (ele, uf, cargo), d in r.items():
+        rnd = "r1" if ele == PRES1 else "r2"
+        snap["pres"][rnd][uf] = d
+    snap, kept = merge_keep_good(snap, old)
     snapshot_changed = not old or {k: v for k, v in old.items() if k != "gerado"} != {k: v for k, v in snap.items() if k != "gerado"}
     if snapshot_changed:
         write_json_atomic(out, snap)
@@ -209,7 +220,7 @@ def main():
         except Exception as err:
             print("série preservada; atualização ignorada:", err)
     erros = sum(1 for d in r.values() if "erro" in d)
-    print("snapshot", "gravado" if snapshot_changed else "sem mudança", "série", "atualizada" if serie_changed else "sem mudança", "arquivos:", len(r), "erros:", erros)
+    print("snapshot", "gravado" if snapshot_changed else "sem mudança", "série", "atualizada" if serie_changed else "sem mudança", "arquivos:", len(r), "erros:", erros, "mantidos:", kept)
 
 if __name__ == "__main__":
     main()

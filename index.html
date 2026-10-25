@@ -25,7 +25,7 @@
       <h2>Não foi possível carregar os resultados</h2>
       <p>Confira sua conexão e tente recarregar a página. O arquivo de resultados não está disponível no momento.</p>
     </section>
-    <section id="panel-presidente" class="tab-panel" role="tabpanel" aria-labelledby="tab-presidente" tabindex="0">
+    <section id="panel-presidente" class="tab-panel" aria-labelledby="page-title" tabindex="0">
       <div class="dashboard-grid">
        <div class="dashboard-main">
         <div id="pres-cards" class="candidate-grid" aria-live="polite"></div>
@@ -34,7 +34,6 @@
        <div class="dashboard-center">
       <section class="data-panel ufs-panel" aria-labelledby="ufs-title">
         <div class="section-heading compact"><div><p class="eyebrow">MAPA ELEITORAL</p><h2 id="ufs-title">Liderança e swing por UF</h2></div></div>
-        <nav class="tabs map-dispute-toggle" aria-label="Disputa exibida" role="group"><button class="tab is-active" id="tab-presidente" type="button" aria-pressed="true">Presidente</button><button class="tab" id="tab-governadores" type="button" aria-pressed="false">Governadores</button></nav>
         <p class="ufs-help">No modo de liderança, a cor indica quem está à frente. O modo swing mostra a variação de Flávio contra a base bilateral do 1º turno.</p>
         <div id="swing-legend" class="swing-legend" aria-label="Legenda do mapa"></div>
         <div class="map-layout"><div id="uf-map" class="uf-map" role="group" aria-label="Mapa geográfico do Brasil por estado"></div><aside class="map-aside"><div class="map-chips" aria-label="Estados em destaque"><span>Seleção rápida</span><div id="uf-chips"></div></div><div class="map-exterior"><div id="uf-exterior"></div></div></aside></div>
@@ -54,7 +53,6 @@
       <nav class="analysis-tabs" role="tablist" aria-label="Painéis de análises">
         <button id="analysis-tab-ufs" role="tab" aria-controls="analysis-ufs" aria-selected="true" type="button">Por UF</button>
         <button id="analysis-tab-regions" role="tab" aria-controls="analysis-regions" aria-selected="false" type="button">Regiões</button>
-        <button id="analysis-tab-gov" role="tab" aria-controls="analysis-gov" aria-selected="false" type="button">Governadores</button>
         <button id="analysis-tab-swing" role="tab" aria-controls="analysis-swing" aria-selected="false" type="button">1º turno × agora</button>
         <button id="analysis-tab-projection" role="tab" aria-controls="analysis-projection" aria-selected="false" type="button">Projeção</button>
         <button id="analysis-tab-feed" role="tab" aria-controls="analysis-feed" aria-selected="false" type="button">Atualizações</button>
@@ -66,7 +64,6 @@
         </tr></thead><tbody id="uf-table-body"></tbody></table></div>
       </section>
       <section id="analysis-regions" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-regions" hidden><div id="pres-regions" class="region-grid regional-grid"></div></section>
-      <section id="analysis-gov" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-gov" hidden><div class="section-heading compact"><div><p class="eyebrow">SEIS DISPUTAS</p><h3>Governadores</h3></div></div><div id="gov-regions" class="region-grid governor-grid" aria-live="polite"></div></section>
       <section id="analysis-swing" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-swing" hidden><div id="analysis-swing-content"></div></section>
       <section id="analysis-projection" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-projection" hidden><div id="pres-projection"></div></section>
       <section id="analysis-feed" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-feed" hidden><ol id="updates-feed" class="updates-feed" aria-live="polite"></ol></section>
