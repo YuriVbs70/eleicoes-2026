@@ -40,7 +40,7 @@ test('Exterior evidence slightly increases a close chance and is deterministic',
   const baseline = simulate(model, snapshot);
   assert.ok(result.pt > baseline.pt && result.pt - baseline.pt < 10);
   assert.ok(result.pt > 1 && result.pt < 99);
-  assert.equal(result.buWeight, 0.02 * 0.42);
+  assert.equal(result.buWeight, 0.5 * 0.42);
   assert.equal(result.buUrnas, 564);
   assert.equal(result.buEscopo, 'zz');
   assert.deepEqual(simulate(model, snapshot, options), result);
@@ -98,11 +98,11 @@ test('combined evidence weights and bounds follow the specified formulas', () =>
   const result = simulate(model, snapshot, {
     bu: { zz: { swing: 1, n: 20, frac: 2 }, br: { swing: -1, n: 30 } }
   });
-  const kZ = 0.02, kS = 0.5 * 30 / 330;
+  const kZ = 0.5, kS = 0.5 * 30 / 330;
   assert.equal(result.buWeight, kZ + kS);
   assert.equal(result.buUrnas, 50);
   assert.equal(result.buEscopo, 'br+zz');
-  assert.equal(result.nationalSwingCenter, (kS * -0.15 + kZ * 0.03) / (kS + kZ + 0.05));
+  assert.equal(result.nationalSwingCenter, (kS * -0.15 + kZ * 0.08) / (kS + kZ + 0.05));
 });
 
 test('the fully counted final branch remains unchanged with BU evidence', () => {

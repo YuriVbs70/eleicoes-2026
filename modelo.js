@@ -75,10 +75,11 @@
     const k = totalE ? rows.reduce((s, r) => s + r.E * r.q, 0) / totalE : 0;
     const bu = options.bu, zz = bu && bu.zz, br = bu && bu.br;
     const zzOfficial = snapshot.pres.r2.zz && valid(snapshot.pres.r2.zz.pst) && snapshot.pres.r2.zz.pst > 0;
-    const kZ = zz && valid(zz.swing) && Number.isInteger(zz.n) && zz.n >= 20 && valid(zz.frac) && !zzOfficial ? 0.02 * clamp(zz.frac) : 0;
+    const kZ = zz && valid(zz.swing) && Number.isInteger(zz.n) && zz.n >= 20 && valid(zz.frac) && !zzOfficial ? 0.5 * clamp(zz.frac) : 0;
     const kS = br && valid(br.swing) && Number.isInteger(br.n) && br.n >= 30 ? 0.5 * br.n / (br.n + 300) * (1 - k) : 0;
-    // Exterior: teto de ±3 pp no swing para nunca mover o centro nacional mais que ~0,9 pp.
-    const cZ = kZ > 0 ? Math.max(-0.03, Math.min(0.03, zz.swing)) : 0;
+    // Exterior (v3.14): em 2018 e 2022 a mudança do Exterior entre turnos bateu com a do Brasil, então antes da apuração
+    // ela entra quase inteira no centro (peso 0,5·frac); teto de ±8 pp. Não estreita a incerteza; some quando o Brasil apura.
+    const cZ = kZ > 0 ? Math.max(-0.08, Math.min(0.08, zz.swing)) : 0;
     const cS = kS > 0 ? Math.max(-0.15, Math.min(0.15, br.swing)) : 0;
     const buWeight = kS + kZ;
     const buUrnas = (kZ > 0 ? zz.n : 0) + (kS > 0 ? br.n : 0);
