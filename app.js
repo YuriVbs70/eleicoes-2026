@@ -3,7 +3,7 @@
 
   // v3.19: recarga remota. Quando versao.txt no site muda, as abas abertas recarregam sozinhas.
   // Trava anti-laço: no máximo uma recarga por versão a cada 3 min (o CDN pode servir index antigo por alguns minutos).
-  const BUILD = '3.29';
+  const BUILD = '3.30';
   function checkVersion() {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || !/^https?:/.test(window.location.protocol)) return;
     fetch('versao.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
@@ -215,8 +215,13 @@
     }
     const pt = Math.max(0, Math.min(100, result.pt));
     const flavio = 100 - pt;
-    const ptRounded = Math.round(pt);
-    const flavioRounded = 100 - ptRounded;
+    // v3.30: 100% só quando o TSE fechar; antes disso o topo é ">99%" (sem piscar 99↔100).
+    const brR2 = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2.br;
+    const fechado = !!(brR2 && Number(brR2.pst) >= 100);
+    const ptCap = fechado ? Math.round(pt) : (pt >= 99.5 ? 99.5 : pt <= 0.5 ? 0.5 : Math.round(pt));
+    const flCap = fechado ? 100 - Math.round(pt) : (pt >= 99.5 ? 0.5 : pt <= 0.5 ? 99.5 : 100 - Math.round(pt));
+    const ptRounded = twFormat('pctcap', ptCap).replace('%', '').replace('&gt;', '>').replace('&lt;', '<');
+    const flavioRounded = twFormat('pctcap', flCap).replace('%', '').replace('&gt;', '>').replace('&lt;', '<');
     const officialK = Number.isFinite(result.officialK) ? result.officialK : 0;
     const urnas = Number.isFinite(result.buUrnas) && result.buUrnas > 0 ? result.buUrnas : 0;
     const pct = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(officialK);
@@ -228,8 +233,8 @@
     const cravarAt = (where) => cravar ? '<p class="' + cravar.cls + ' chance-cravar--' + where + '">' + cravar.html + '</p>' : '';
     const when = timestamp ? new Date(timestamp).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
     return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO · 5.000 SIMULAÇÕES</p><h2>Chance de vitória</h2></div><span class="chance-status">' + (stale ? 'desatualizada' : 'atualizada') + '</span></div>' +
-      '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span>' + cravarAt('inline') + '<span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' + cravarAt('row') +
-      '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" data-tw-w="ch-wa" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" data-tw-w="ch-wb" style="width:' + pt + '%"></span></div>' +
+      '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flCap, 'pctcap') + '>' + twFormat('pctcap', flCap) + '</strong></span>' + cravarAt('inline') + '<span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptCap, 'pctcap') + '>' + twFormat('pctcap', ptCap) + '</strong></span></div>' + cravarAt('row') +
+      '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.round(flCap) + '" data-tw-w="ch-wa" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.round(ptCap) + '" data-tw-w="ch-wb" style="width:' + pt + '%"></span></div>' +
       sparkMarkup(chanceHistory(result)) +
       '<p class="chance-time">' + (result.tie ? 'Empate nas simulações' : 'Probabilidade de vitória · não é percentual de votos') + ' · atualizado às ' + when + (stale ? ' · último cálculo válido' : '') + '</p>' +
       '<button class="chance-mobile-trigger" type="button" aria-controls="chance-method">Chance · Flávio ' + flavioRounded + '% · ' + ptRounded + '% Lula · estimativa, não oficial</button>' +
@@ -399,6 +404,7 @@
     if (f === 'pct') return fmtPercent.format(v) + '%';
     if (f === 'pp') return fmtPercent.format(Math.abs(v));
     if (f === 'pct0') return Math.round(v) + '%';
+    if (f === 'pctcap') return v >= 99.5 ? '>99%' : v <= 0.5 ? '<1%' : Math.round(v) + '%';
     if (f === 'short') return fmtShort(v);
     return fmtNumber.format(Math.round(Math.abs(v)));
   }
