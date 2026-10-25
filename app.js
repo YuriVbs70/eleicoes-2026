@@ -3,7 +3,7 @@
 
   // v3.19: recarga remota. Quando versao.txt no site muda, as abas abertas recarregam sozinhas.
   // Trava anti-laço: no máximo uma recarga por versão a cada 3 min (o CDN pode servir index antigo por alguns minutos).
-  const BUILD = '3.20';
+  const BUILD = '3.21';
   function checkVersion() {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || !/^https?:/.test(window.location.protocol)) return;
     fetch('versao.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
@@ -197,7 +197,19 @@
     document.addEventListener('pointermove', onSpark); document.addEventListener('pointerdown', onSpark);
   }
 
-  function chanceMarkup(result, timestamp, stale) {
+  // "Cravar": só com líder >= 80% E SP, RJ, MG e BA com >= 20% das seções apuradas (snapshot oficial).
+  // Devolve classe + miolo; o painel põe na linha Flávio/Lula (desktop) ou numa linha própria (<=1023px).
+  const CRAVAR_UFS = ['sp', 'rj', 'mg', 'ba'];
+  function cravarMarkup(pt, snapshot) {
+    if (!Number.isFinite(pt) || Math.round(Math.max(pt, 100 - pt)) < 80) return null;  // arredondado, igual ao número na tela
+    const name = pt >= 50 ? 'Lula' : 'Flávio';
+    const r2 = snapshot && snapshot.pres && snapshot.pres.r2 || {};
+    const ufs = CRAVAR_UFS.map((uf) => { const v = Number(r2[uf] && r2[uf].pst); return { uf, pst: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0 }; });
+    if (ufs.every((u) => u.pst >= 20)) return { cls: 'chance-cravar is-cravado', html: 'Dá pra cravar: <em class="chance-cravar-name">' + safeText(name) + '</em>' };
+    // floor: 19,9% aparece como 19%, nunca como 20% sem bater a regra
+    return { cls: 'chance-cravar', html: 'Favorito: <em class="chance-cravar-name">' + safeText(name) + '</em> · ainda não dá pra cravar — ' + ufs.map((u) => u.uf.toUpperCase() + ' ' + Math.floor(u.pst) + '%').join(' · ') + ' apurados<small class="chance-cravar-note"> (precisa 20% em cada)</small>' };
+  }
+  function chanceMarkup(result, timestamp, stale, snapshot) {
     if (!result || !result.available || !Number.isFinite(result.pt) || !Number.isFinite(result.opositor)) {
       return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO</p><h2>Chance de vitória</h2></div></div><p class="muted">' + safeText(result && result.reason || 'Chance de vitória calculada no navegador com o modelo local.') + '</p></section>';
     }
@@ -212,9 +224,11 @@
       ? (officialK > 0 ? 'Base: oficial' + (result.munUsado ? ' por município' : '') + ' (' + pct + ' dos votos) + ' + fmtNumber.format(urnas) + ' urnas por seção' : 'Base: 1º turno + ' + fmtNumber.format(urnas) + ' urnas ' + (result.buEscopo === 'zz' ? 'do Exterior ' : '') + 'por seção')
       : (officialK > 0 ? (result.munUsado ? 'Base: oficial por município (' + pct + ' dos votos)' : 'Base: totalização oficial') : 'Base: 1º turno (sem apuração ainda)');
     const baseNote = urnas > 0 ? '<span class="chance-base-note"> · swing de cada seção vs. o 1º turno</span>' : '';
+    const cravar = cravarMarkup(pt, snapshot);
+    const cravarAt = (where) => cravar ? '<p class="' + cravar.cls + ' chance-cravar--' + where + '">' + cravar.html + '</p>' : '';
     const when = timestamp ? new Date(timestamp).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
     return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO · 5.000 SIMULAÇÕES</p><h2>Chance de vitória</h2></div><span class="chance-status">' + (stale ? 'desatualizada' : 'atualizada') + '</span></div>' +
-      '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' +
+      '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span>' + cravarAt('inline') + '<span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' + cravarAt('row') +
       '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" data-tw-w="ch-wa" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" data-tw-w="ch-wb" style="width:' + pt + '%"></span></div>' +
       sparkMarkup(chanceHistory(result)) +
       '<p class="chance-time">' + (result.tie ? 'Empate nas simulações' : 'Probabilidade de vitória · não é percentual de votos') + ' · atualizado às ' + when + (stale ? ' · último cálculo válido' : '') + '</p>' +
@@ -238,10 +252,10 @@
           avisoChanceState = aviso.state; showAviso(aviso.msg);
         }
         lastChanceStale = !!stale || !result || !result.available;
-        target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, lastChanceStale); puAttach(target);
+        target.innerHTML = chanceMarkup(lastChance && lastChance.result || result, lastChance && lastChance.timestamp, lastChanceStale, snapshot); puAttach(target);
         twApply(target);
       } catch (_) {
-        target.innerHTML = chanceMarkup(lastChance && lastChance.result, lastChance && lastChance.timestamp, true); puAttach(target);
+        target.innerHTML = chanceMarkup(lastChance && lastChance.result, lastChance && lastChance.timestamp, true, snapshot); puAttach(target);
         twApply(target);
       }
     }, 0);

@@ -659,3 +659,19 @@ html[data-theme="light"] .urna-bar { background:#e3e5f2; }
   #pres-chance .chance-spark svg { height:18px; }
   #pres-chance .chance-spark .spark-tip { text-align:right; font-size:.54rem; margin-top:1px; }
 }
+
+/* Cravar (v3.21): linha discreta (líder >= 80% e SP/RJ/MG/BA >= 20% apurados). Desktop: no meio da linha Flávio/Lula, sem mudar a altura; <=1023px: linha própria. */
+.chance-cravar { margin:0; color:var(--muted); font-size:.6rem; line-height:1.3; }
+.chance-cravar--inline { flex:1 1 0; min-width:0; align-self:center; text-align:center; }
+.chance-cravar--row { display:none; }
+.chance-cravar-name { color:var(--text); font-style:normal; font-weight:750; }
+.chance-cravar.is-cravado, .chance-cravar.is-cravado .chance-cravar-name { color:#5fdc9c; font-weight:700; }
+html[data-theme="light"] .chance-cravar.is-cravado, html[data-theme="light"] .chance-cravar.is-cravado .chance-cravar-name { color:#137a48; }
+@media (max-width:1023px) {
+  .chance-cravar--inline { display:none; }
+  #pres-chance .chance-panel > .chance-cravar--row { display:block; flex:0 0 100%; margin:4px 0 0; text-align:right; }
+}
+@media (max-width:700px) {
+  #pres-chance .chance-panel > .chance-cravar--row { order:-1; margin:0 0 3px; text-align:center; }
+  .chance-cravar-note { display:none; }
+}
