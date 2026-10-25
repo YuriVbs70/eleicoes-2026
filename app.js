@@ -3,7 +3,7 @@
 
   // v3.19: recarga remota. Quando versao.txt no site muda, as abas abertas recarregam sozinhas.
   // Trava anti-laço: no máximo uma recarga por versão a cada 3 min (o CDN pode servir index antigo por alguns minutos).
-  const BUILD = '3.22';
+  const BUILD = '3.23';
   function checkVersion() {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || !/^https?:/.test(window.location.protocol)) return;
     fetch('versao.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
@@ -205,9 +205,9 @@
     const name = pt >= 50 ? 'Lula' : 'Flávio';
     const r2 = snapshot && snapshot.pres && snapshot.pres.r2 || {};
     const ufs = CRAVAR_UFS.map((uf) => { const v = Number(r2[uf] && r2[uf].pst); return { uf, pst: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0 }; });
-    if (ufs.every((u) => u.pst >= 20)) return { cls: 'chance-cravar is-cravado', html: 'Provável vencedor: <em class="chance-cravar-name">' + safeText(name) + '</em>' };
+    if (ufs.every((u) => u.pst >= 20)) return { cls: 'chance-cravar is-cravado', html: 'Dá pra cravar: <em class="chance-cravar-name">' + safeText(name) + '</em>' };
     // floor: 19,9% aparece como 19%, nunca como 20% sem bater a regra
-    return { cls: 'chance-cravar', html: 'Favorito: <em class="chance-cravar-name">' + safeText(name) + '</em> · ainda cedo — ' + ufs.map((u) => u.uf.toUpperCase() + ' ' + Math.floor(u.pst) + '%').join(' · ') + ' apurados<small class="chance-cravar-note"> (precisa 20% em cada)</small>' };
+    return { cls: 'chance-cravar', html: 'Favorito: <em class="chance-cravar-name">' + safeText(name) + '</em> · ainda não dá pra cravar — ' + ufs.map((u) => u.uf.toUpperCase() + ' ' + Math.floor(u.pst) + '%').join(' · ') + ' apurados<small class="chance-cravar-note"> (precisa 20% em cada)</small>' };
   }
   function chanceMarkup(result, timestamp, stale, snapshot) {
     if (!result || !result.available || !Number.isFinite(result.pt) || !Number.isFinite(result.opositor)) {
