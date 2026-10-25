@@ -114,3 +114,43 @@ test('the fully counted final branch remains unchanged with BU evidence', () => 
   assert.deepEqual(simulate(model, snapshot, { bu: { br: { swing: 0.03, n: 1000 } } }), baseline);
   assert.deepEqual(baseline, { available: true, pt: 0, opositor: 100, tie: false, simulations: 0, reason: 'resultado nacional final' });
 });
+
+// Parciais municipais (v3.11)
+function biased() {
+  // Base 50/50; parciais oficiais viesadas: os municípios pró-Lula chegaram primeiro (UF parcial 56%), swing real 0.
+  const { model, snapshot } = fixture(0.5);
+  for (const uf of UFS) snapshot.pres.r2[uf] = { pst: 20, cands: [{ n: '13', v: 11200 }, { n: '22', v: 8800 }] };
+  const ufs = {}; for (const uf of UFS) ufs[uf] = { s: 0, cov: 0.2, n: 50, b_rest: 0.485 };
+  return { model, snapshot, mun: { swing: 0, n: 1350, cov: 0.2, ufs } };
+}
+
+test('municipal partials remove composition bias from the official partial', () => {
+  const { model, snapshot, mun } = biased();
+  const raw = simulate(model, snapshot);
+  const fixed = simulate(model, snapshot, { bu: { zz: null, br: null, mun } });
+  assert.ok(raw.pt > 90, 'raw partial alone is heavily biased: ' + raw.pt);
+  assert.ok(fixed.munUsado);
+  assert.ok(fixed.pt > 25 && fixed.pt < 75, 'with municipal swing 0 the race stays open: ' + fixed.pt);
+  assert.ok(fixed.pt < raw.pt);
+});
+
+test('municipal evidence is monotone and ignored without official count', () => {
+  const { model, snapshot, mun } = biased();
+  let prev = -1;
+  for (const s of [-0.03, -0.01, 0, 0.01, 0.03]) {
+    const ufs = {}; for (const uf of UFS) ufs[uf] = { s, cov: 0.2, n: 50, b_rest: 0.485 };
+    const pt = simulate(model, snapshot, { bu: { mun: { ...mun, swing: s, ufs } } }).pt;
+    assert.ok(pt >= prev, 'monotone at ' + s); prev = pt;
+  }
+  const { model: m2, snapshot: s2 } = fixture(0.5);
+  const r = simulate(m2, s2, { bu: { mun } });
+  assert.equal(r.munUsado, false);
+  assert.deepEqual(r.pt, simulate(m2, s2).pt);
+});
+
+test('tiny municipal coverage never gives 100/0', () => {
+  const { model, snapshot } = fixture(0.5);
+  snapshot.pres.r2.sp = { pst: 1, cands: [{ n: '13', v: 900 }, { n: '22', v: 100 }] };
+  const r = simulate(model, snapshot, { bu: { mun: { swing: 0.3, n: 3, cov: 0.003, ufs: { sp: { s: 0.3, cov: 0.01, n: 3 } } } } });
+  assert.ok(r.pt > 1 && r.pt < 99, String(r.pt));
+});

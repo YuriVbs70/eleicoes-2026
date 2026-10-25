@@ -83,11 +83,16 @@
     const buWeight = kS + kZ;
     const buUrnas = (kZ > 0 ? zz.n : 0) + (kS > 0 ? br.n : 0);
     const buEscopo = kS > 0 ? (kZ > 0 ? 'br+zz' : 'br') : (kZ > 0 ? 'zz' : null);
-    const center = buWeight > 0 ? (k * rawCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.05) : rawCenter * (k / (k + 0.05));
+    // Parciais oficiais por município (mesmo município no 1º turno): trocam o swing cru das UFs, que mistura
+    // "quais municípios chegaram primeiro" com mudança de voto. Mesmo peso k: são os mesmos votos oficiais, sem contar duas vezes.
+    const mun = bu && bu.mun;
+    const munOk = !!(mun && valid(mun.swing) && valid(mun.cov) && mun.cov >= 0.002 && k > 0 && mun.ufs && typeof mun.ufs === 'object');
+    const offCenter = munOk ? Math.max(-0.15, Math.min(0.15, mun.swing)) : rawCenter;
+    const center = buWeight > 0 ? (k * offCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.05) : offCenter * (k / (k + 0.05));
     // Só a amostra do Brasil reduz a incerteza nacional; o Exterior move o centro, mas não estreita.
     const nationalSd = model.nacional.sd_nac * Math.sqrt(0.05 / (0.05 + kS));
     let seed = snapshotSeed(snapshot, model.versao);
-    if (buWeight > 0) seed = hashSeed(JSON.stringify([seed, buUrnas, Math.round(cS * 1e6), Math.round(cZ * 1e6), kS, kZ]));
+    if (buWeight > 0 || munOk) seed = hashSeed(JSON.stringify([seed, buUrnas, Math.round(cS * 1e6), Math.round(cZ * 1e6), kS, kZ, munOk ? Math.round(offCenter * 1e6) : 0]));
     const random = options.random || mulberry32(options.seed === undefined ? seed : hashSeed(options.seed));
 
     // Quando todas as abrangências estão em 100%, os votos observados são o resultado final.
@@ -107,7 +112,12 @@
         // Seções já contadas não representam o resto (ordem de apuração): o % observado só pesa aos poucos
         // (w = q/(q+0,10)) e o resto da UF continua sujeito ao choque nacional comum, encolhendo com √(1−q).
         const w = r.q / (r.q + 0.10);
-        const share = r.observed
+        const mu = munOk && r.observed ? mun.ufs[r.uf] : null;
+        const muOk = !!(mu && valid(mu.s) && valid(mu.cov) && mu.cov > 0);
+        const wU = muOk ? clamp(mu.cov) / (clamp(mu.cov) + 0.10) : 0;
+        const share = muOk
+          ? clamp((valid(mu.b_rest) && mu.b_rest > 0 && mu.b_rest < 1 ? mu.b_rest : r.base) + wU * Math.max(-0.15, Math.min(0.15, mu.s)) + (1 - wU) * center + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
+          : r.observed
           ? clamp(w * r.observedShare + (1 - w) * (r.base + center) + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
           : clamp(r.base + center + nationalShock + normal(random) * r.sd);
         ptVotes += r.fixedPT + remaining * share;
@@ -118,7 +128,7 @@
       else ties++;
     }
     const pt = (ptWins + ties / 2) * 100 / count;
-    return { available: true, pt, opositor: 100 - pt, tie: ptWins === 0 && flWins === 0, simulations: count, nationalSwingCenter: center, buWeight, buUrnas, buEscopo, officialK: k };
+    return { available: true, pt, opositor: 100 - pt, tie: ptWins === 0 && flWins === 0, simulations: count, nationalSwingCenter: center, buWeight, buUrnas, buEscopo, officialK: k, munUsado: munOk };
   }
 
   function unavailable(reason) { return { available: false, pt: null, opositor: null, reason }; }
