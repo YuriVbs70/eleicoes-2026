@@ -853,7 +853,7 @@
   // ---- Exterior por boletins de urna (agregado no box por scripts/bu_exterior.py, branch "dados") ----
   const DADOS_BASE = 'https://raw.githubusercontent.com/YuriVbs70/eleicoes-2026/dados/';
   const BU_URL = DADOS_BASE + 'zz-bu.json';
-  const BU_REFRESH_MS = 60000;
+  const BU_REFRESH_MS = 15000;  // feed do box (BU do Exterior + evidência por município da chance)
   let buZZ = null, buLastOk = 0, buFails = 0, buTimer = null;
   function validBu(d) {
     return !!d && typeof d === 'object' && Number.isFinite(Number(d.recebidas)) && Number(d.secoes_principais) > 0 && !!d.totais && ['lula', 'flavio', 'brancos', 'nulos'].every((k) => Number.isFinite(Number(d.totais[k])));
@@ -897,7 +897,7 @@
     try {
       const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
       const kill = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
-      const res = await fetch(BU_URL + '?t=' + Math.floor(Date.now() / 60000), { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      const res = await fetch(BU_URL + '?t=' + Math.floor(Date.now() / 15000), { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
       if (kill) clearTimeout(kill);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
@@ -954,7 +954,7 @@
   }
   async function refreshPu() {
     try {
-      const res = await fetch(PU_URL + '?t=' + Math.floor(Date.now() / 60000), { cache: 'no-store' });
+      const res = await fetch(PU_URL + '?t=' + Math.floor(Date.now() / 15000), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
       const previousEvid = JSON.stringify(puEvid), previousChanceBu = puChanceBu;
@@ -968,7 +968,7 @@
         try { updateChance(officialView(window.currentElectionSnapshot), false); } catch (_) {}
       }
     } catch (err) { puFails += 1; console.warn('projeção por urna indisponível', err && err.message || err); }
-    finally { if (typeof setTimeout === 'function') { if (puTimer) clearTimeout(puTimer); puTimer = setTimeout(refreshPu, Math.min(60000 * Math.pow(2, Math.min(puFails, 3)), 8 * 60000)); } }
+    finally { if (typeof setTimeout === 'function') { if (puTimer) clearTimeout(puTimer); puTimer = setTimeout(refreshPu, Math.min(15000 * Math.pow(2, Math.min(puFails, 3)), 8 * 60000)); } }
   }
   function officialView(snapshot) {
     const z = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2.zz;
