@@ -3,7 +3,7 @@
 
   // v3.19: recarga remota. Quando versao.txt no site muda, as abas abertas recarregam sozinhas.
   // Trava anti-laço: no máximo uma recarga por versão a cada 3 min (o CDN pode servir index antigo por alguns minutos).
-  const BUILD = '3.26';
+  const BUILD = '3.27';
   function checkVersion() {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || !/^https?:/.test(window.location.protocol)) return;
     fetch('versao.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
