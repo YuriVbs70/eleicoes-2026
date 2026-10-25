@@ -426,3 +426,30 @@ html[data-theme="light"] .uf-chip { border-color:#aeb5ce; }
   .ufs-panel .uf-detail[data-open="true"] { display:block !important; position:fixed; left:8px; right:8px; bottom:calc(64px + env(safe-area-inset-bottom, 0px)); z-index:40; max-height:55vh; overflow:auto; margin:0; box-shadow:0 -12px 40px rgb(0 0 0 / 55%); background:rgb(12 16 42 / 97%); }
   html[data-theme="light"] .ufs-panel .uf-detail[data-open="true"] { background:rgb(248 249 255 / 98%); }
 }
+/* Rodada 37 (Grok): guias em camada HTML, rótulos legíveis */
+.map-layout { position:relative; }
+.uf-guide-layer { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:1; }
+.uf-guide-layer .uf-guide { fill:none; stroke:#d8e4ff; stroke-width:1.2px; opacity:.6; }
+.uf-guide-layer .uf-guide-dot { fill:#d8e4ff; opacity:.9; }
+html[data-theme="light"] .uf-guide-layer .uf-guide { stroke:#59617f; opacity:.7; }
+html[data-theme="light"] .uf-guide-layer .uf-guide-dot { fill:#59617f; }
+.uf-labels circle.uf-anchor { fill:none; stroke:none; pointer-events:none; }
+#uf-map .uf-labels text { font-size:17px; stroke-width:4px; paint-order:stroke fill; }
+@media (max-width:1023px) {
+  .uf-guide-layer { display:none; }
+  #uf-map .uf-labels text { font-size:24px; stroke-width:5px; }
+  #uf-map .uf-labels text:is([data-uf="rn"],[data-uf="pb"],[data-uf="pe"],[data-uf="al"],[data-uf="se"],[data-uf="es"],[data-uf="rj"],[data-uf="df"]) { display:none; }
+}
+.mobile-nav .nav-ico { width:20px; height:20px; display:block; margin:0 auto 2px; }
+@media (max-width:1023px) { #uf-map .uf-labels text[data-uf="ac"] { font-size:17px; } }
+/* Rodada 37 (Grok): tema claro */
+html[data-theme="light"] [style*="454963"] { --uf-fill:#cdd3e4 !important; }
+html[data-theme="light"] .uf-exterior-button[style*="454963"] { color:#202641; }
+html[data-theme="light"] .waiting-status { background:rgb(255 255 255 / 92%); color:#202641; border-color:#d5d9ea; }
+html[data-theme="light"] .waiting-status * { color:inherit; }
+html[data-theme="light"] .chance-label { color:#5b4aa8; }
+html[data-theme="light"] .chance-mobile-trigger { color:#202641; }
+html[data-theme="light"] #pres-chance summary, html[data-theme="light"] .chance-details summary { color:#3e3798; }
+html[data-theme="light"] .score-split { background:rgb(32 38 65 / 12%); }
+html[data-theme="light"] .score-split i { border-left-color:rgb(32 38 65 / 55%); }
+html[data-theme="light"] .swing-legend i.swing-neutral { background:#cdd3e4; box-shadow:inset 0 0 0 1px #9aa2bd; }

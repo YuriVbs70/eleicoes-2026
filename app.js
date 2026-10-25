@@ -540,6 +540,8 @@
     if (!mapGuideObserver && typeof ResizeObserver !== 'undefined') {
       mapGuideObserver = new ResizeObserver(() => scheduleMapGuides(svg));
       for (const target of [svg, document.querySelector('.map-layout'), document.querySelector('#uf-chips')]) if (target) mapGuideObserver.observe(target);
+      svg.addEventListener('transitionend', () => scheduleMapGuides(svg));
+      setTimeout(() => scheduleMapGuides(svg), 1200);
     }
   }
   function scheduleMapGuides(svg) {
@@ -555,16 +557,25 @@
     const chipOrder=['rn','pb','pe','al','se','es','rj','df'];
     const chipsVisible = matchMedia('(min-width: 701px)').matches && getComputedStyle(document.querySelector('.map-chips')).display !== 'none';
     guides.replaceChildren();
-    if (!chipsVisible) return;
-    const inverse=svg.getScreenCTM();
-    if (!inverse) return;
-    const toSvg=inverse.inverse(), point=svg.createSVGPoint();
+    const oldLayer=svg.closest('.map-layout')?.querySelector(':scope > .uf-guide-layer');
+    if (!chipsVisible) { if (oldLayer) oldLayer.replaceChildren(); return; }
+    const layout=svg.closest('.map-layout');
+    if (!layout) return;
+    let layer=layout.querySelector(':scope > .uf-guide-layer');
+    if (!layer) { layer=document.createElementNS(ns,'svg'); layer.setAttribute('class','uf-guide-layer'); layer.setAttribute('aria-hidden','true'); layout.prepend(layer); }
+    layer.replaceChildren();
+    const base=layout.getBoundingClientRect();
     for (const uf of chipOrder) {
       const chip=document.querySelector('#uf-chips [data-uf="'+uf+'"]'), label=group.querySelector('text[data-uf="'+uf+'"]');
       if (!chip || !label || !chip.getClientRects().length) continue;
-      const rect=chip.getBoundingClientRect(); point.x=rect.left; point.y=rect.top+rect.height/2;
-      const start=point.matrixTransform(toSvg), line=document.createElementNS(ns,'path');
-      line.setAttribute('d','M'+start.x+' '+start.y+' L'+label.getAttribute('x')+' '+label.getAttribute('y')); line.setAttribute('class','uf-guide'); guides.appendChild(line);
+      let anchor=group.querySelector('circle.uf-anchor[data-uf="'+uf+'"]');
+      if (!anchor) { anchor=document.createElementNS(ns,'circle'); anchor.setAttribute('class','uf-anchor'); anchor.dataset.uf=uf; anchor.setAttribute('r','1'); group.appendChild(anchor); }
+      anchor.setAttribute('cx',label.getAttribute('x')); anchor.setAttribute('cy',label.getAttribute('y'));
+      const end=anchor.getBoundingClientRect(), rect=chip.getBoundingClientRect();
+      const x1=rect.left-base.left-2, y1=rect.top+rect.height/2-base.top, x2=end.left+end.width/2-base.left, y2=end.top+end.height/2-base.top;
+      const line=document.createElementNS(ns,'path');
+      line.setAttribute('d','M'+x1.toFixed(1)+' '+y1.toFixed(1)+' L'+x2.toFixed(1)+' '+y2.toFixed(1)); line.setAttribute('class','uf-guide'); line.dataset.uf=uf; layer.appendChild(line);
+      const dot=document.createElementNS(ns,'circle'); dot.setAttribute('cx',x2.toFixed(1)); dot.setAttribute('cy',y2.toFixed(1)); dot.setAttribute('r','2.5'); dot.setAttribute('class','uf-guide-dot'); layer.appendChild(dot);
     }
   }
   function mapLegend(mode, waiting) {
