@@ -17,66 +17,65 @@
 <body>
   <header class="site-header">
     <a class="brand" href="./" aria-label="Eleição 2026, início"><span class="brand-mark">BR</span><span>ELEIÇÃO <strong>2026</strong></span></a>
-    <div class="header-status"><span class="status-dot" aria-hidden="true"></span><span id="source-status" role="status">Carregando resultado oficial…</span></div>
+    <div class="intro-heading"><h1 id="page-title">Apuração 2º turno · 25/10</h1><div id="waiting-notice" class="waiting-status" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><strong id="waiting-title">Aguardando apuração</strong><span id="waiting-countdown" class="waiting-clock"></span></div></div>
+    <div class="header-actions"><div class="header-status"><span class="status-dot" aria-hidden="true"></span><span id="source-status" role="status">Carregando resultado oficial…</span></div><button class="settings-trigger" id="settings-trigger" type="button" aria-label="Abrir personalização" title="Personalizar">⚙</button></div>
   </header>
   <main class="page-shell">
-    <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow">SEGUNDO TURNO · 25 DE OUTUBRO</p>
-      <h1 id="page-title">Acompanhe a apuração</h1>
-      <p class="intro-copy">Resultados oficiais do Tribunal Superior Eleitoral, apresentados de forma independente.</p>
-      <div class="turn-summary" id="turn-summary" hidden></div>
-    </section>
-
-    <nav class="tabs" aria-label="Tipo de eleição">
-      <button class="tab is-active" id="tab-presidente" type="button" role="tab" aria-selected="true" aria-controls="panel-presidente">Presidente</button>
-      <button class="tab" id="tab-governadores" type="button" role="tab" aria-selected="false" aria-controls="panel-governadores">Governadores</button>
-    </nav>
-
     <section id="load-error" class="notice notice-error" role="alert" hidden>
       <h2>Não foi possível carregar os resultados</h2>
       <p>Confira sua conexão e tente recarregar a página. O arquivo de resultados não está disponível no momento.</p>
     </section>
-    <section id="waiting-notice" class="notice notice-waiting" role="status" aria-live="polite" hidden>
-      <p class="eyebrow">SEGUNDO TURNO · BRASIL</p>
-      <h2 id="waiting-title">Aguardando apuração</h2>
-      <div id="waiting-countdown" class="waiting-clock"></div>
-      <p>Os resultados do 1º turno continuam visíveis abaixo.</p>
-    </section>
     <section id="panel-presidente" class="tab-panel" role="tabpanel" aria-labelledby="tab-presidente" tabindex="0">
-      <div class="section-heading"><div><p class="eyebrow">BRASIL</p><h2>Presidente</h2></div><span id="pres-update" class="update-label">Aguardando dados</span></div>
+      <div class="section-heading desktop-view-heading"><div><p class="eyebrow">BRASIL</p><h2>Presidente</h2></div><span id="pres-update" class="update-label">Aguardando dados</span></div>
       <div class="dashboard-grid">
        <div class="dashboard-main">
         <div id="pres-cards" class="candidate-grid" aria-live="polite"></div>
-        <div id="pres-chance"></div>
-        <div id="pres-projection"></div>
-        <section class="data-panel timeline-panel"><div class="section-heading compact"><div><p class="eyebrow">ACOMPANHAMENTO</p><h2>Ao longo da apuração</h2></div></div><div id="timeline-chart" aria-live="polite"></div></section>
        </div>
        <div class="dashboard-center">
       <section class="data-panel ufs-panel" aria-labelledby="ufs-title">
-        <div class="section-heading compact"><div><p class="eyebrow">MAPA ELEITORAL</p><h2 id="ufs-title">Liderança e swing por UF</h2></div><div class="map-mode" role="group" aria-label="Modo do mapa"><button type="button" class="is-active" data-map-mode="leader" aria-pressed="true">Quem lidera</button><button type="button" data-map-mode="swing" aria-pressed="false">Swing x 1º turno</button></div></div>
+        <div class="section-heading compact"><div><p class="eyebrow">MAPA ELEITORAL</p><h2 id="ufs-title">Liderança e swing por UF</h2></div></div>
+        <nav class="tabs map-dispute-toggle" aria-label="Disputa exibida" role="group"><button class="tab is-active" id="tab-presidente" type="button" aria-pressed="true">Presidente</button><button class="tab" id="tab-governadores" type="button" aria-pressed="false">Governadores</button></nav>
         <p class="ufs-help">No modo de liderança, a cor indica quem está à frente. O modo swing mostra a variação de Flávio contra a base bilateral do 1º turno.</p>
         <div id="swing-legend" class="swing-legend" aria-label="Legenda do mapa"></div>
-        <div class="map-layout"><div id="uf-map" class="uf-map" role="group" aria-label="Mapa geográfico do Brasil por estado"></div><div class="map-exterior"><p>Exterior</p><div id="uf-exterior"></div></div></div>
+        <div class="map-layout"><div id="uf-map" class="uf-map" role="group" aria-label="Mapa geográfico do Brasil por estado"></div><aside class="map-aside"><div class="map-chips" aria-label="Estados em destaque"><span>Seleção rápida</span><div id="uf-chips"></div></div><div class="map-exterior"><div id="uf-exterior"></div></div></aside></div>
         <div class="uf-detail-tools"><label for="uf-select">Escolha uma UF</label><select id="uf-select"><option value="">Selecione…</option></select></div>
         <section id="uf-detail" class="uf-detail" aria-live="polite" aria-label="Detalhes da UF"><p>Selecione uma UF para ver os detalhes.</p></section>
         <div id="uf-tooltip" class="uf-tooltip" role="tooltip" hidden></div>
-        <div class="uf-table-wrap"><table class="uf-table"><caption>Resultados por UF. O swing compara o percentual do líder atual com sua base bilateral no 1º turno.</caption><thead><tr>
-          <th><button type="button" data-sort="uf">UF <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="pst">% apurado <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="firstA">Flávio 1º <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="firstB">Lula 1º <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="nowA">Flávio agora <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="nowB">Lula agora <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="swing">Swing Flávio <span aria-hidden="true">↕</span></button></th>
-        </tr></thead><tbody id="uf-table-body"></tbody></table></div>
       </section>
        </div>
        <aside class="dashboard-side">
-        <section class="data-panel"><div class="section-heading compact"><div><p class="eyebrow">BRASIL</p><h2>Por região</h2></div></div><div id="pres-regions" class="region-grid regional-grid"></div></section>
-        <section class="data-panel"><div class="section-heading compact"><div><p class="eyebrow">TEMPO REAL</p><h2>Últimas atualizações</h2></div></div><ol id="updates-feed" class="updates-feed" aria-live="polite"></ol></section>
+        <div id="pres-chance"></div>
+        <section class="data-panel timeline-panel"><div class="section-heading compact"><div><p class="eyebrow">ACOMPANHAMENTO</p><h2>Ao longo da apuração</h2></div></div><div id="timeline-chart" aria-live="polite"></div><div id="timeline-replay" class="timeline-replay"><label for="timeline-scrubber">Linha do tempo</label><input id="timeline-scrubber" type="range" min="0" max="0" value="0" disabled aria-describedby="timeline-state"><div class="scrubber-labels"><span>17h</span><button id="timeline-live" type="button" disabled>Ao vivo</button></div><p id="timeline-state" class="timeline-state" aria-live="polite">A linha do tempo começa às 17h.</p><div id="timeline-score" class="timeline-score" hidden></div></div></section>
        </aside>
       </div>
     </section>
-    <section id="panel-governadores" class="tab-panel" role="tabpanel" aria-labelledby="tab-governadores" tabindex="0" hidden>
-      <div class="section-heading"><div><p class="eyebrow">SEIS DISPUTAS</p><h2>Governadores</h2></div></div>
-      <div id="gov-regions" class="region-grid governor-grid" aria-live="polite"></div>
+    <section id="analyses" class="analyses" aria-labelledby="analysis-title">
+      <div class="section-heading"><div><p class="eyebrow">APROFUNDE OS DADOS</p><h2 id="analysis-title">Análises</h2></div></div>
+      <nav class="analysis-tabs" role="tablist" aria-label="Painéis de análises">
+        <button id="analysis-tab-ufs" role="tab" aria-controls="analysis-ufs" aria-selected="true" type="button">Por UF</button>
+        <button id="analysis-tab-regions" role="tab" aria-controls="analysis-regions" aria-selected="false" type="button">Regiões</button>
+        <button id="analysis-tab-gov" role="tab" aria-controls="analysis-gov" aria-selected="false" type="button">Governadores</button>
+        <button id="analysis-tab-swing" role="tab" aria-controls="analysis-swing" aria-selected="false" type="button">1º turno × agora</button>
+        <button id="analysis-tab-projection" role="tab" aria-controls="analysis-projection" aria-selected="false" type="button">Projeção</button>
+        <button id="analysis-tab-feed" role="tab" aria-controls="analysis-feed" aria-selected="false" type="button">Atualizações</button>
+        <button id="analysis-tab-first" role="tab" aria-controls="analysis-first" aria-selected="false" type="button">1º turno</button>
+      </nav>
+      <section id="analysis-ufs" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-ufs">
+        <div class="uf-table-wrap"><table class="uf-table"><caption>Resultados por UF. O swing compara o percentual do líder atual com sua base bilateral no 1º turno.</caption><thead><tr>
+          <th><button type="button" data-sort="uf">UF <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="pst">% apurado <span aria-hidden="true">↕</span></button></th><th data-first-turn-comparison><button type="button" data-sort="firstA">Flávio 1º <span aria-hidden="true">↕</span></button></th><th data-first-turn-comparison><button type="button" data-sort="firstB">Lula 1º <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="nowA">Flávio agora <span aria-hidden="true">↕</span></button></th><th><button type="button" data-sort="nowB">Lula agora <span aria-hidden="true">↕</span></button></th><th data-first-turn-comparison><button type="button" data-sort="swing">Swing Flávio <span aria-hidden="true">↕</span></button></th>
+        </tr></thead><tbody id="uf-table-body"></tbody></table></div>
+      </section>
+      <section id="analysis-regions" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-regions" hidden><div id="pres-regions" class="region-grid regional-grid"></div></section>
+      <section id="analysis-gov" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-gov" hidden><div class="section-heading compact"><div><p class="eyebrow">SEIS DISPUTAS</p><h3>Governadores</h3></div></div><div id="gov-regions" class="region-grid governor-grid" aria-live="polite"></div></section>
+      <section id="analysis-swing" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-swing" hidden><div id="analysis-swing-content"></div></section>
+      <section id="analysis-projection" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-projection" hidden><div id="pres-projection"></div></section>
+      <section id="analysis-feed" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-feed" hidden><ol id="updates-feed" class="updates-feed" aria-live="polite"></ol></section>
+      <section id="analysis-first" class="analysis-panel" role="tabpanel" aria-labelledby="analysis-tab-first" hidden><div id="first-turn-details"></div></section>
+      <section id="analysis-settings" class="analysis-panel" role="tabpanel" aria-label="Personalizar" hidden><div class="settings-panel data-panel"><div class="section-heading compact"><div><p class="eyebrow">PREFERÊNCIAS</p><h3>Personalizar</h3></div><button id="reset-preferences" class="reset-preferences" type="button">Restaurar padrão</button></div><fieldset><legend>Modo do mapa</legend><div class="map-mode" role="group" aria-label="Modo do mapa"><button type="button" data-map-mode="leader">Quem lidera</button><button type="button" data-map-mode="swing">Swing x 1º turno</button><button type="button" data-map-mode="progress">% apurado</button></div></fieldset><label class="preference-row" for="region-filter">Filtrar por região<select id="region-filter"><option value="all">Todas as regiões</option><option value="Norte">Norte</option><option value="Nordeste">Nordeste</option><option value="Centro-Oeste">Centro-Oeste</option><option value="Sudeste">Sudeste</option><option value="Sul">Sul</option><option value="Exterior">Exterior</option></select></label><fieldset><legend>Painéis centrais</legend><label class="preference-check"><input type="checkbox" id="pref-map"> Mapa</label><label class="preference-check"><input type="checkbox" id="pref-chance"> Chance de vitória</label><label class="preference-check"><input type="checkbox" id="pref-chart"> Gráfico e linha do tempo</label></fieldset><label class="preference-check"><input type="checkbox" id="pref-comparison"> Mostrar comparação com o 1º turno em análises e detalhes</label><label class="preference-row" for="theme-select">Tema<select id="theme-select"><option value="dark">Escuro</option><option value="light">Claro</option></select></label><p class="settings-note">As preferências ficam neste navegador e não alteram resultados nem estimativas.</p></div></section>
     </section>
   </main>
-  <footer class="site-footer"><p>Dados: <a href="https://resultados.tse.jus.br/oficial/ele2026/" target="_blank" rel="noopener noreferrer">Tribunal Superior Eleitoral (TSE)</a>.</p><p>Mapa: <a href="https://github.com/codeforamerica/click_that_hood" target="_blank" rel="noopener noreferrer">Code for America / Click That ’Hood</a> — <a href="data/brasil-ufs.LICENSE.txt" target="_blank" rel="noopener noreferrer">licença MIT</a>.</p><p>Este é um painel independente e <strong>não oficial</strong>. Consulte o TSE para os resultados oficiais.</p></footer>
+  <footer class="site-footer"><p class="footer-short">Dados do TSE</p><p class="footer-long">Dados: <a href="https://resultados.tse.jus.br/oficial/ele2026/" target="_blank" rel="noopener noreferrer">Tribunal Superior Eleitoral (TSE)</a>.</p><p class="footer-long">Mapa: <a href="https://github.com/codeforamerica/click_that_hood" target="_blank" rel="noopener noreferrer">Code for America / Click That ’Hood</a> — <a href="data/brasil-ufs.LICENSE.txt" target="_blank" rel="noopener noreferrer">licença MIT</a>.</p><p class="footer-long">Este é um painel independente e <strong>não oficial</strong>. Consulte o TSE para os resultados oficiais.</p></footer>
+  <nav class="mobile-nav" aria-label="Navegação principal"><button type="button" data-mobile-view="map" aria-current="page">⌖<span>Mapa</span></button><button type="button" data-mobile-view="explore">⌕<span>Explorar</span></button><button type="button" data-mobile-view="results">▤<span>Resultados</span></button><button type="button" data-mobile-view="settings">⚙<span>Ajustes</span></button></nav>
   <div id="tse-toast" class="tse-toast" role="status" aria-live="polite" hidden>O TSE não está respondendo; números são os últimos recebidos.</div>
   <div id="milestone-confetti" class="milestone-confetti" aria-hidden="true"></div>
 </body>
