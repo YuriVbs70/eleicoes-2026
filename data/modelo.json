@@ -1,0 +1,323 @@
+{
+  "unidade": "fração de 0 a 1",
+  "anos": [
+    "2022"
+  ],
+  "n": 1,
+  "abrangencias": {
+    "ac": {
+      "votos_pt_r1": 129022,
+      "votos_opositor_r1": 275582,
+      "vv_r1": 440917,
+      "share_pt_bilateral_r1": 0.3188846378187067,
+      "share_pt_r2": 0.29699791847863266,
+      "d_uf": -0.021886719340074023,
+      "residuo_uf": -0.002354260782140738,
+      "sd_uf": 0.005234781865008186
+    },
+    "al": {
+      "votos_pt_r1": 974156,
+      "votos_opositor_r1": 621515,
+      "vv_r1": 1724217,
+      "share_pt_bilateral_r1": 0.6104992821201864,
+      "share_pt_r2": 0.5868058183723023,
+      "d_uf": -0.02369346374788417,
+      "residuo_uf": -0.004161005189950884,
+      "sd_uf": 0.005234781865008186
+    },
+    "am": {
+      "votos_pt_r1": 1019684,
+      "votos_opositor_r1": 880198,
+      "vv_r1": 2056676,
+      "share_pt_bilateral_r1": 0.5367091219349412,
+      "share_pt_r2": 0.5109953974410342,
+      "d_uf": -0.025713724493907075,
+      "residuo_uf": -0.00618126593597379,
+      "sd_uf": 0.005234781865008186
+    },
+    "ap": {
+      "votos_pt_r1": 197382,
+      "votos_opositor_r1": 187621,
+      "vv_r1": 432161,
+      "share_pt_bilateral_r1": 0.5126765245985097,
+      "share_pt_r2": 0.4863893050593523,
+      "d_uf": -0.026287219539157358,
+      "residuo_uf": -0.006754760981224073,
+      "sd_uf": 0.005234781865008186
+    },
+    "ba": {
+      "votos_pt_r1": 5873081,
+      "votos_opositor_r1": 2047599,
+      "vv_r1": 8423008,
+      "share_pt_bilateral_r1": 0.7414869682906013,
+      "share_pt_r2": 0.7212215531382428,
+      "d_uf": -0.02026541515235858,
+      "residuo_uf": -0.0007329565944252936,
+      "sd_uf": 0.005234781865008186
+    },
+    "ce": {
+      "votos_pt_r1": 3578355,
+      "votos_opositor_r1": 1377827,
+      "vv_r1": 5429264,
+      "share_pt_bilateral_r1": 0.7219983043399133,
+      "share_pt_r2": 0.6996753986499994,
+      "d_uf": -0.022322905689913908,
+      "residuo_uf": -0.0027904471319806223,
+      "sd_uf": 0.005234781865008186
+    },
+    "df": {
+      "votos_pt_r1": 649534,
+      "votos_opositor_r1": 910397,
+      "vv_r1": 1762575,
+      "share_pt_bilateral_r1": 0.41638636580720556,
+      "share_pt_r2": 0.4118854009824774,
+      "d_uf": -0.004500964824728171,
+      "residuo_uf": 0.015031493733205115,
+      "sd_uf": 0.005234781865008186
+    },
+    "es": {
+      "votos_pt_r1": 897348,
+      "votos_opositor_r1": 1160030,
+      "vv_r1": 2221130,
+      "share_pt_bilateral_r1": 0.43616097771046447,
+      "share_pt_r2": 0.4195581354078388,
+      "d_uf": -0.016602842302625653,
+      "residuo_uf": 0.002929616255307632,
+      "sd_uf": 0.005234781865008186
+    },
+    "go": {
+      "votos_pt_r1": 1454723,
+      "votos_opositor_r1": 1920203,
+      "vv_r1": 3681469,
+      "share_pt_bilateral_r1": 0.43103848795499516,
+      "share_pt_r2": 0.4128649512898524,
+      "d_uf": -0.018173536665142764,
+      "residuo_uf": 0.0013589218927905211,
+      "sd_uf": 0.005234781865008186
+    },
+    "ma": {
+      "votos_pt_r1": 2603454,
+      "votos_opositor_r1": 983861,
+      "vv_r1": 3781645,
+      "share_pt_bilateral_r1": 0.7257388882771655,
+      "share_pt_r2": 0.7113572977419869,
+      "d_uf": -0.014381590535178623,
+      "residuo_uf": 0.005150868022754662,
+      "sd_uf": 0.005234781865008186
+    },
+    "mg": {
+      "votos_pt_r1": 5802571,
+      "votos_opositor_r1": 5239264,
+      "vv_r1": 12016633,
+      "share_pt_bilateral_r1": 0.5255078526350013,
+      "share_pt_r2": 0.5020130113920632,
+      "d_uf": -0.023494841242938103,
+      "residuo_uf": -0.003962382685004817,
+      "sd_uf": 0.005234781865008186
+    },
+    "ms": {
+      "votos_pt_r1": 588323,
+      "votos_opositor_r1": 794206,
+      "vv_r1": 1506989,
+      "share_pt_bilateral_r1": 0.4255411640551482,
+      "share_pt_r2": 0.4050574501419786,
+      "d_uf": -0.02048371391316961,
+      "residuo_uf": -0.0009512553552363245,
+      "sd_uf": 0.005234781865008186
+    },
+    "mt": {
+      "votos_pt_r1": 633748,
+      "votos_opositor_r1": 1102866,
+      "vv_r1": 1842888,
+      "share_pt_bilateral_r1": 0.36493314000693305,
+      "share_pt_r2": 0.349173796854373,
+      "d_uf": -0.015759343152560057,
+      "residuo_uf": 0.0037731154053732285,
+      "sd_uf": 0.005234781865008186
+    },
+    "pa": {
+      "votos_pt_r1": 2443730,
+      "votos_opositor_r1": 1884673,
+      "vv_r1": 4679936,
+      "share_pt_bilateral_r1": 0.5645800541215779,
+      "share_pt_r2": 0.5474788341818717,
+      "d_uf": -0.017101219939706147,
+      "residuo_uf": 0.0024312386182271384,
+      "sd_uf": 0.005234781865008186
+    },
+    "pb": {
+      "votos_pt_r1": 1554868,
+      "votos_opositor_r1": 717416,
+      "vv_r1": 2421688,
+      "share_pt_bilateral_r1": 0.6842753810703239,
+      "share_pt_r2": 0.6662437017952093,
+      "d_uf": -0.01803167927511462,
+      "residuo_uf": 0.001500779282818665,
+      "sd_uf": 0.005234781865008186
+    },
+    "pe": {
+      "votos_pt_r1": 3558322,
+      "votos_opositor_r1": 1630938,
+      "vv_r1": 5452009,
+      "share_pt_bilateral_r1": 0.6857089450133546,
+      "share_pt_r2": 0.6693180679680096,
+      "d_uf": -0.01639087704534492,
+      "residuo_uf": 0.003141581512588365,
+      "sd_uf": 0.005234781865008186
+    },
+    "pi": {
+      "votos_pt_r1": 1518008,
+      "votos_opositor_r1": 406897,
+      "vv_r1": 2044386,
+      "share_pt_bilateral_r1": 0.7886145030533974,
+      "share_pt_r2": 0.7686019159274848,
+      "d_uf": -0.020012587125912584,
+      "residuo_uf": -0.0004801285679792988,
+      "sd_uf": 0.005234781865008186
+    },
+    "pr": {
+      "votos_pt_r1": 2363492,
+      "votos_opositor_r1": 3628612,
+      "vv_r1": 6566764,
+      "share_pt_bilateral_r1": 0.39443440901559784,
+      "share_pt_r2": 0.3760312861726494,
+      "d_uf": -0.018403122842948427,
+      "residuo_uf": 0.0011293357149848582,
+      "sd_uf": 0.005234781865008186
+    },
+    "rj": {
+      "votos_pt_r1": 3847143,
+      "votos_opositor_r1": 4831246,
+      "vv_r1": 9456677,
+      "share_pt_bilateral_r1": 0.44330151598413026,
+      "share_pt_r2": 0.4347456844381828,
+      "d_uf": -0.008555831545947468,
+      "residuo_uf": 0.010976627011985818,
+      "sd_uf": 0.005234781865008186
+    },
+    "rn": {
+      "votos_pt_r1": 1264179,
+      "votos_opositor_r1": 622731,
+      "vv_r1": 2007264,
+      "share_pt_bilateral_r1": 0.669973130673959,
+      "share_pt_r2": 0.6509700387505237,
+      "d_uf": -0.0190030919234353,
+      "residuo_uf": 0.0005293666344979853,
+      "sd_uf": 0.005234781865008186
+    },
+    "ro": {
+      "votos_pt_r1": 261749,
+      "votos_opositor_r1": 581306,
+      "vv_r1": 903235,
+      "share_pt_bilateral_r1": 0.3104767779089146,
+      "share_pt_r2": 0.2933738032003928,
+      "d_uf": -0.01710297470852179,
+      "residuo_uf": 0.0024294838494114956,
+      "sd_uf": 0.005234781865008186
+    },
+    "rr": {
+      "votos_pt_r1": 68760,
+      "votos_opositor_r1": 207587,
+      "vv_r1": 298369,
+      "share_pt_bilateral_r1": 0.24881760974427078,
+      "share_pt_r2": 0.23919100931422504,
+      "d_uf": -0.009626600430045734,
+      "residuo_uf": 0.009905858127887551,
+      "sd_uf": 0.005234781865008186
+    },
+    "rs": {
+      "votos_pt_r1": 2806672,
+      "votos_opositor_r1": 3245023,
+      "vv_r1": 6637752,
+      "share_pt_bilateral_r1": 0.4637827914328134,
+      "share_pt_r2": 0.436503439377537,
+      "d_uf": -0.02727935205527643,
+      "residuo_uf": -0.007746893497343144,
+      "sd_uf": 0.005234781865008186
+    },
+    "sc": {
+      "votos_pt_r1": 1279216,
+      "votos_opositor_r1": 2694406,
+      "vv_r1": 4330984,
+      "share_pt_bilateral_r1": 0.3219269472536643,
+      "share_pt_r2": 0.30728565752663684,
+      "d_uf": -0.01464128972702744,
+      "residuo_uf": 0.004891168830905845,
+      "sd_uf": 0.005234781865008186
+    },
+    "se": {
+      "votos_pt_r1": 828716,
+      "votos_opositor_r1": 378610,
+      "vv_r1": 1298432,
+      "share_pt_bilateral_r1": 0.6864061570777072,
+      "share_pt_r2": 0.6720608518290361,
+      "d_uf": -0.01434530524867117,
+      "residuo_uf": 0.005187153309262116,
+      "sd_uf": 0.005234781865008186
+    },
+    "sp": {
+      "votos_pt_r1": 10490032,
+      "votos_opositor_r1": 12239989,
+      "vv_r1": 25656334,
+      "share_pt_bilateral_r1": 0.46150560089671716,
+      "share_pt_r2": 0.4476092660574378,
+      "d_uf": -0.013896334839279378,
+      "residuo_uf": 0.005636123718653907,
+      "sd_uf": 0.005234781865008186
+    },
+    "to": {
+      "votos_pt_r1": 434303,
+      "votos_opositor_r1": 379194,
+      "vv_r1": 861792,
+      "share_pt_bilateral_r1": 0.5338716676275389,
+      "share_pt_r2": 0.5135533715333703,
+      "d_uf": -0.020318296094168575,
+      "residuo_uf": -0.0007858375362352898,
+      "sd_uf": 0.005234781865008186
+    },
+    "zz": {
+      "votos_pt_r1": 138933,
+      "votos_opositor_r1": 122548,
+      "vv_r1": 294525,
+      "share_pt_bilateral_r1": 0.5313311483434743,
+      "share_pt_r2": 0.5128132032505056,
+      "d_uf": -0.01851794509296867,
+      "residuo_uf": 0.001014513464964617,
+      "sd_uf": 0.005234781865008186
+    }
+  },
+  "nacional": {
+    "d_nac": -0.019532458557933285,
+    "sd_nac": 0.019532458557933285
+  },
+  "metadados": {
+    "formulas": {
+      "d_uf": "share PT do 2º turno de 2022 menos share PT bilateral do 1º turno de 2022, por UF/ZZ",
+      "d_nac": "mesma diferença após somar votos PT e do outro finalista nas 27 UFs + ZZ",
+      "residuo_uf": "d_uf menos d_nac",
+      "sd_uf": "desvio-padrão amostral (n−1) dos 28 resíduos entre UFs/ZZ; mesmo parâmetro para cada abrangência",
+      "sd_nac": "valor absoluto de d_nac de 2022"
+    },
+    "premissas": [
+      "Há somente uma eleição histórica; não é possível estimar desvio entre eleições.",
+      "sd_nac usa |d_nac| de 2022 como tamanho típico do choque nacional.",
+      "Choque nacional pré-apuração centrado em zero; nenhum ajuste adicional é aplicado.",
+      "A base de 2026 é o 1º turno por UF; a incerteza é calibrada pela mudança do 1º para o 2º turno de 2022 por UF.",
+      "Não há dados históricos de ordem de apuração."
+    ],
+    "finalistas_2022": {
+      "pt": {
+        "n": "13",
+        "nm": "LULA",
+        "sg": "PT"
+      },
+      "opositor": {
+        "n": "22",
+        "nm": "JAIR BOLSONARO",
+        "sg": "PL"
+      }
+    },
+    "fonte_tse": "https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_candidato_munzona/votacao_candidato_munzona_2022.zip (membro votacao_candidato_munzona_2022_BR.csv)",
+    "sha256_historico": "e811cff98f4fda3d0716e185bbf3aa0ba1f4f8ee39b2e0d95699e3182e72c098"
+  }
+}
