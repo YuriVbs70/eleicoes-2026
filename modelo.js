@@ -94,7 +94,9 @@
     // v3.19: encolhimento 0,05→0,15. As cidades que apuram cedo (interior, Sul/CO) não falam pelas capitais; o ganho medido só manda no centro à medida que a apuração avança.
     const center = buWeight > 0 ? (k * offCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.15) : offCenter * (k / (k + 0.15));
     // Só a amostra do Brasil reduz a incerteza nacional; o Exterior move o centro, mas não estreita.
-    const nationalSd = model.nacional.sd_nac * Math.sqrt(0.05 / (0.05 + kS));
+    // v3.25: + incerteza de transferência (0,04·(1−k)): o ganho medido nas cidades já apuradas pode não valer igual pras que faltam.
+    // Calibrado na amostra independente de boletins (20:14: ambos dão Lula 51,4%; IC90 48,7–54,0 vs. 48,6–54,2). Some quando a apuração termina.
+    const nationalSd = Math.sqrt((model.nacional.sd_nac * Math.sqrt(0.05 / (0.05 + kS))) ** 2 + (0.04 * (1 - k)) ** 2);
     let seed = snapshotSeed(snapshot, model.versao);
     if (buWeight > 0 || munOk) seed = hashSeed(JSON.stringify([seed, buUrnas, Math.round(cS * 1e6), Math.round(cZ * 1e6), kS, kZ, munOk ? Math.round(offCenter * 1e6) : 0]));
     const random = options.random || mulberry32(options.seed === undefined ? seed : hashSeed(options.seed));
