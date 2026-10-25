@@ -47,9 +47,16 @@
     const flavio = 100 - pt;
     const ptRounded = Math.round(pt);
     const flavioRounded = 100 - ptRounded;
+    const officialK = Number.isFinite(result.officialK) ? result.officialK : 0;
+    const urnas = Number.isFinite(result.buUrnas) && result.buUrnas > 0 ? result.buUrnas : 0;
+    const pct = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(officialK);
+    const base = urnas > 0
+      ? (officialK > 0 ? 'Base: oficial (' + pct + ' dos votos) + ' + fmtNumber.format(urnas) + ' urnas por seção' : 'Base: 1º turno + ' + fmtNumber.format(urnas) + ' urnas ' + (result.buEscopo === 'zz' ? 'do Exterior ' : '') + 'por seção')
+      : (officialK > 0 ? 'Base: totalização oficial' : 'Base: 1º turno (sem apuração ainda)');
+    const baseNote = urnas > 0 ? ' · swing de cada seção vs. o 1º turno' : '';
     const when = timestamp ? new Date(timestamp).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
     return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO · 5.000 SIMULAÇÕES</p><h2>Chance de vitória</h2></div><span class="chance-status">' + (stale ? 'desatualizada' : 'atualizada') + '</span></div>' +
-      '<p class="chance-label">estimativa estatística, não oficial</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' +
+      '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' +
       '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" data-tw-w="ch-wa" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" data-tw-w="ch-wb" style="width:' + pt + '%"></span></div>' +
       '<p class="chance-time">' + (result.tie ? 'Empate nas simulações' : 'Probabilidade de vitória · não é percentual de votos') + ' · atualizado às ' + when + (stale ? ' · último cálculo válido' : '') + '</p>' +
       '<button class="chance-mobile-trigger" type="button" aria-controls="chance-method">Chance · Flávio ' + flavioRounded + '% · ' + ptRounded + '% Lula · estimativa, não oficial</button>' +
@@ -64,7 +71,7 @@
     setTimeout(() => {
       if (version !== chanceVersion) return;
       try {
-        const result = globalThis.EleicoesModelo.simulate(electionModel, snapshot, { simulations: 5000 });
+        const result = globalThis.EleicoesModelo.simulate(electionModel, snapshot, { simulations: 5000, bu: puChanceBu ? puEvid : null });
         if (version !== chanceVersion) return;
         if (result && result.available) lastChance = { result, timestamp: Date.now() };
         lastChanceStale = !!stale || !result || !result.available;
@@ -764,6 +771,7 @@
   // Aparece só quando o box marca "mostrar" (amostra do Brasil suficiente) ou com ?pu=1 (prévia).
   const PU_URL = DADOS_BASE + 'projecao-urna.json';
   let puTimer = null, puFails = 0;
+  let puEvid = null, puChanceBu = true;
   function puPreview() { try { return typeof window !== 'undefined' && /[?&]pu=1\b/.test(window.location.search); } catch (e) { return false; } }
   function puBlock(d, preview) {
     if (!d || typeof d !== 'object') return null;
@@ -793,14 +801,22 @@
     if (puHtml) target.insertAdjacentHTML('beforeend', puHtml);
   }
   function renderPu(d) {
-    puHtml = puMarkup(d, puPreview());
+    // Sem card separado: a evidência por urna entra direto na barra única de chance.
+    puHtml = null; void d;
     puAttach(typeof document !== 'undefined' ? $('pres-chance') : null);
   }
   async function refreshPu() {
     try {
       const res = await fetch(PU_URL + '?t=' + Math.floor(Date.now() / 60000), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      renderPu(await res.json()); puFails = 0;
+      const d = await res.json();
+      const previousEvid = JSON.stringify(puEvid), previousChanceBu = puChanceBu;
+      puEvid = d && d.evid || null;
+      puChanceBu = !(d && d.chance_bu === false);
+      renderPu(d); puFails = 0;
+      if ((previousEvid !== JSON.stringify(puEvid) || previousChanceBu !== puChanceBu) && typeof window !== 'undefined' && window.currentElectionSnapshot) {
+        try { updateChance(officialView(window.currentElectionSnapshot), false); } catch (_) {}
+      }
     } catch (err) { puFails += 1; console.warn('projeção por urna indisponível', err && err.message || err); }
     finally { if (typeof setTimeout === 'function') { if (puTimer) clearTimeout(puTimer); puTimer = setTimeout(refreshPu, Math.min(60000 * Math.pow(2, Math.min(puFails, 3)), 8 * 60000)); } }
   }

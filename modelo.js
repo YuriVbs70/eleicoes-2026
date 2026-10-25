@@ -50,7 +50,6 @@
 
   function simulate(model, snapshot, options = {}) {
     const count = options.simulations === undefined ? 5000 : options.simulations;
-    const random = options.random || mulberry32(options.seed === undefined ? snapshotSeed(snapshot || { pres: { r2: {} } }, model && model.versao) : hashSeed(options.seed));
     if (!model || !snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2 || !model.abrangencias || !model.nacional || !Number.isInteger(count) || count < 1 || !valid(model.nacional.sd_nac) || model.nacional.sd_nac < 0) return unavailable('parâmetros ou dados ausentes');
     const rows = [];
     for (const uf of UFS) {
@@ -74,7 +73,22 @@
     // Sem isso, poucas seções (ex.: só o Exterior) ditariam 100%/0% para o Brasil inteiro.
     const totalE = rows.reduce((s, r) => s + r.E, 0);
     const k = totalE ? rows.reduce((s, r) => s + r.E * r.q, 0) / totalE : 0;
-    const center = rawCenter * (k / (k + 0.05));
+    const bu = options.bu, zz = bu && bu.zz, br = bu && bu.br;
+    const zzOfficial = snapshot.pres.r2.zz && valid(snapshot.pres.r2.zz.pst) && snapshot.pres.r2.zz.pst > 0;
+    const kZ = zz && valid(zz.swing) && Number.isInteger(zz.n) && zz.n >= 20 && valid(zz.frac) && !zzOfficial ? 0.02 * clamp(zz.frac) : 0;
+    const kS = br && valid(br.swing) && Number.isInteger(br.n) && br.n >= 30 ? 0.5 * br.n / (br.n + 300) * (1 - k) : 0;
+    // Exterior: teto de ±3 pp no swing para nunca mover o centro nacional mais que ~0,9 pp.
+    const cZ = kZ > 0 ? Math.max(-0.03, Math.min(0.03, zz.swing)) : 0;
+    const cS = kS > 0 ? Math.max(-0.15, Math.min(0.15, br.swing)) : 0;
+    const buWeight = kS + kZ;
+    const buUrnas = (kZ > 0 ? zz.n : 0) + (kS > 0 ? br.n : 0);
+    const buEscopo = kS > 0 ? (kZ > 0 ? 'br+zz' : 'br') : (kZ > 0 ? 'zz' : null);
+    const center = buWeight > 0 ? (k * rawCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.05) : rawCenter * (k / (k + 0.05));
+    // Só a amostra do Brasil reduz a incerteza nacional; o Exterior move o centro, mas não estreita.
+    const nationalSd = model.nacional.sd_nac * Math.sqrt(0.05 / (0.05 + kS));
+    let seed = snapshotSeed(snapshot, model.versao);
+    if (buWeight > 0) seed = hashSeed(JSON.stringify([seed, buUrnas, Math.round(cS * 1e6), Math.round(cZ * 1e6), kS, kZ]));
+    const random = options.random || mulberry32(options.seed === undefined ? seed : hashSeed(options.seed));
 
     // Quando todas as abrangências estão em 100%, os votos observados são o resultado final.
     if (rows.every(r => r.observed && r.q === 1)) {
@@ -85,7 +99,7 @@
 
     let ptWins = 0, flWins = 0, ties = 0;
     for (let i = 0; i < count; i++) {
-      const nationalShock = normal(random) * model.nacional.sd_nac;
+      const nationalShock = normal(random) * nationalSd;
       let ptVotes = 0, flVotes = 0;
       for (const r of rows) {
         if (r.observed && r.q === 1) { ptVotes += r.fixedPT; flVotes += r.fixedFl; continue; }
@@ -104,7 +118,7 @@
       else ties++;
     }
     const pt = (ptWins + ties / 2) * 100 / count;
-    return { available: true, pt, opositor: 100 - pt, tie: ptWins === 0 && flWins === 0, simulations: count, nationalSwingCenter: center };
+    return { available: true, pt, opositor: 100 - pt, tie: ptWins === 0 && flWins === 0, simulations: count, nationalSwingCenter: center, buWeight, buUrnas, buEscopo, officialK: k };
   }
 
   function unavailable(reason) { return { available: false, pt: null, opositor: null, reason }; }

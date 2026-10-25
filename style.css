@@ -593,6 +593,8 @@ html[data-theme="light"] .tc-src { color:#8a5a00; }
   #pres-cards { height:194px; }
 }
 
+.chance-base { margin:0 0 6px; color:var(--muted); font-size:.62rem; }
+
 /* Projeção por urna (dentro de #pres-chance, abaixo da chance) */
 #pres-chance.has-urna { display:flex; flex-direction:column; gap:10px; }
 #pres-chance.has-urna > .chance-panel { height:auto; }
