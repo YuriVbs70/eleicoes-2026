@@ -12,7 +12,8 @@
   const $ = (id) => document.getElementById(id);
   const LIVE_BASE = 'https://resultados.tse.jus.br/oficial/ele2026/';
   const PRESIDENT_UFS = ['br','ac','al','ap','am','ba','ce','df','es','go','ma','mt','ms','mg','pa','pb','pr','pe','pi','rj','rn','rs','ro','rr','sc','sp','se','to','zz'];
-  const REFRESH_MS = 4000;
+  const REFRESH_MS = 2000;  // checagem leve (só o arquivo Brasil); a completa (29 arquivos) roda quando o TSE muda ou a cada FULL_MAX_MS
+  const FULL_MAX_MS = 20000;
   const COUNTING_START = Date.parse('2026-10-25T17:00:00-03:00');
   const REGION_UFS = { Norte:['ac','am','ap','pa','ro','rr','to'], Nordeste:['al','ba','ce','ma','pb','pe','pi','rn','se'], 'Centro-Oeste':['df','go','ms','mt'], Sudeste:['es','mg','rj','sp'], Sul:['pr','rs','sc'], Exterior:['zz'] };
   const HISTORY_KEY = 'eleicoes-2026-apuracao-v1';
@@ -987,7 +988,7 @@
     return m ? m[1] + '/' + m[2] + ' ' + String(r.hg || '').slice(0, 5) : null;
   }
   function tseStripMarkup() {
-    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checagem a cada 4s</span><p class="tse-note" id="tse-note" hidden></p></div>';
+    return '<div class="tse-strip" id="tse-strip"><span class="tse-gen" id="tse-gen">TSE atualizou<span class="tse-long"> pela última vez</span>: —</span><span class="tse-next" id="tse-next">Checagem a cada 2s</span><p class="tse-note" id="tse-note" hidden></p></div>';
   }
   function updateTseStrip(nowArg) {
     if (typeof document === 'undefined' || !$('tse-gen')) return;
@@ -999,7 +1000,7 @@
     const stale = pollState && pollState.lastGood && now - pollState.lastGood > Math.max(3 * REFRESH_MS, 90000);
     const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
     if (pollState && pollState.lastUpdated) next.textContent = pollState.busy ? 'Última checagem às ' + hm(pollState.lastUpdated) : (stale ? 'TSE instável · dados de ' + hm(pollState.lastGood) + ' · ' : '') + 'Próxima checagem em ' + Math.max(0, Math.ceil(((REFRESH_MS * (1 + (pollState.skip || 0))) - (now - pollState.lastUpdated)) / 1000)) + 's';
-    else next.textContent = 'Checagem a cada 4s';
+    else next.textContent = 'Checagem a cada 2s';
     next.classList.toggle('is-stale', !!stale);
     const note = $('tse-note'), waiting = isAwaiting(snapshot);
     note.hidden = !waiting;
@@ -1133,6 +1134,15 @@
       // Backoff: depois de rodadas com maioria de erros (TSE lento/429/5xx), pula ciclos e mantém o último dado bom.
       if (!force && state.skip > 0) { state.skip -= 1; return; }
       state.busy = true;
+      // Checagem leve: só o arquivo Brasil. Se o TSE não gerou nada novo, não baixa os outros 28 nem redesenha a tela.
+      if (!force && state.lastFull && now() - state.lastFull < FULL_MAX_MS) {
+        try {
+          const brNow = await get(endpoint('pres', 'br', now()));
+          state.lastGood = now();
+          if (resultTime(brNow) <= resultTime(state.snapshot.pres.r2.br)) { state.lastUpdated = now(); status(); state.busy = false; return state; }
+        } catch (_) { state.lastUpdated = now(); status(); state.busy = false; return state; }
+      }
+      state.lastFull = now();
       const jobs = [];
       PRESIDENT_UFS.forEach((uf) => jobs.push({ kind: 'pres', uf }));
       const stamp = now();
@@ -1160,6 +1170,8 @@
         const key = 'pres';
         const current = state.snapshot[key].r2[job.uf];
         if (!error && validResult(result)) {
+          // CDN do TSE às vezes devolve um arquivo mais velho por alguns segundos: nunca voltar o número pra trás.
+          if (current && resultTime(result) && resultTime(result) < resultTime(current)) { state.liveKeys.add(key + ':' + job.uf); return; }
           state.snapshot[key].r2[job.uf] = result;
           state.liveKeys.add(key + ':' + job.uf);
           return;
