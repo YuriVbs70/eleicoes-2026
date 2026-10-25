@@ -89,7 +89,8 @@
     const mun = bu && bu.mun;
     const munOk = !!(mun && valid(mun.swing) && valid(mun.cov) && mun.cov >= 0.002 && k > 0 && mun.ufs && typeof mun.ufs === 'object');
     // v3.20: swing_raw é o swing verdadeiro; mun.swing no feed vem compensado para as abas antigas (modelo 0,05).
-    const munSwing = valid(mun && mun.swing_raw) ? mun.swing_raw : (mun && mun.swing);
+    // v3.29: swing_rest pondera as UFs pelo eleitorado que FALTA (E·(1−cov)), não pelo já contado; preferido quando existe.
+    const munSwing = valid(mun && mun.swing_rest) ? mun.swing_rest : valid(mun && mun.swing_raw) ? mun.swing_raw : (mun && mun.swing);
     const offCenter = munOk ? Math.max(-0.15, Math.min(0.15, munSwing)) : rawCenter;
     // v3.19: encolhimento 0,05→0,15. As cidades que apuram cedo (interior, Sul/CO) não falam pelas capitais; o ganho medido só manda no centro à medida que a apuração avança.
     const center = buWeight > 0 ? (k * offCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.15) : offCenter * (k / (k + 0.15));
@@ -108,6 +109,26 @@
       return { available: true, pt: pt > fl ? 100 : 0, opositor: fl > pt ? 100 : 0, tie: false, simulations: 0, reason: 'resultado nacional final' };
     }
 
+    // v3.29: evidência própria da UF = parciais municipais (wU = cov/(cov+0,10)) + amostra focada de BUs mesma-seção
+    // (wF = τ²/(τ²+se²+(δ(1−f))²), τ=0,0125 dispersão entre UFs, δ=0,01 viés de ordem de chegada que some quando a amostra completa).
+    // Pesos de encolhimento viram precisões relativas w/(1−w) e se somam; swing próprio = média ponderada; peso total ≤ 0,9.
+    const foco = bu && bu.foco && typeof bu.foco === 'object' && (k > 0 || buWeight > 0) ? bu.foco : null;
+    const ownSwing = (mu, fo) => {
+      let oU = 0, oF = 0, sU = 0, sF = 0;
+      if (mu && valid(mu.s) && valid(mu.cov) && mu.cov > 0) { const c = clamp(mu.cov), w = c / (c + 0.10); oU = w / (1 - w); sU = Math.max(-0.15, Math.min(0.15, mu.s)); }
+      if (fo && valid(fo.s) && valid(fo.se) && fo.se >= 0 && Number.isInteger(fo.n) && fo.n >= 30) {
+        const d = 0.01 * (1 - (valid(fo.f) ? clamp(fo.f) : 0)), w = 0.0125 ** 2 / (0.0125 ** 2 + fo.se ** 2 + d ** 2);
+        oF = w / (1 - w); sF = Math.max(-0.15, Math.min(0.15, fo.s));
+      }
+      if (oU + oF <= 0) return { w: 0, s: 0 };
+      return { w: Math.min(0.9, (oU + oF) / (1 + oU + oF)), s: (oU * sU + oF * sF) / (oU + oF) };
+    };
+    for (const r of rows) {
+      const mu = munOk && r.observed ? mun.ufs[r.uf] : null;
+      r.muOk = !!(mu && valid(mu.s) && valid(mu.cov) && mu.cov > 0);
+      r.own = ownSwing(r.muOk ? mu : null, foco && foco[r.uf]);
+      r.bRest = r.muOk && valid(mu.b_rest) && mu.b_rest > 0 && mu.b_rest < 1 ? mu.b_rest : r.base;
+    }
     let ptWins = 0, flWins = 0, ties = 0;
     for (let i = 0; i < count; i++) {
       const nationalShock = normal(random) * nationalSd;
@@ -118,14 +139,13 @@
         // Seções já contadas não representam o resto (ordem de apuração): o % observado só pesa aos poucos
         // (w = q/(q+0,10)) e o resto da UF continua sujeito ao choque nacional comum, encolhendo com √(1−q).
         const w = r.q / (r.q + 0.10);
-        const mu = munOk && r.observed ? mun.ufs[r.uf] : null;
-        const muOk = !!(mu && valid(mu.s) && valid(mu.cov) && mu.cov > 0);
-        const wU = muOk ? clamp(mu.cov) / (clamp(mu.cov) + 0.10) : 0;
-        const share = muOk
-          ? clamp((valid(mu.b_rest) && mu.b_rest > 0 && mu.b_rest < 1 ? mu.b_rest : r.base) + wU * Math.max(-0.15, Math.min(0.15, mu.s)) + (1 - wU) * center + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
+        // Swing do resto da UF: evidência própria (municipal + focada) com peso r.own.w, o resto do centro nacional.
+        const swingRest = r.own.w * r.own.s + (1 - r.own.w) * center;
+        const share = r.muOk
+          ? clamp(r.bRest + swingRest + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
           : r.observed
-          ? clamp(w * r.observedShare + (1 - w) * (r.base + center) + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
-          : clamp(r.base + center + nationalShock + normal(random) * r.sd);
+          ? clamp(w * r.observedShare + (1 - w) * (r.base + swingRest) + (nationalShock + normal(random) * r.sd) * Math.sqrt(1 - r.q))
+          : clamp(r.base + swingRest + nationalShock + normal(random) * r.sd);
         ptVotes += r.fixedPT + remaining * share;
         flVotes += r.fixedFl + remaining * (1 - share);
       }
