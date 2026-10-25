@@ -594,6 +594,7 @@ html[data-theme="light"] .tc-src { color:#8a5a00; }
 }
 
 .chance-base { margin:0 0 6px; color:var(--muted); font-size:.62rem; }
+@media (max-width:700px){ .chance-base-note { display:none; } }
 
 /* Projeção por urna (dentro de #pres-chance, abaixo da chance) */
 #pres-chance.has-urna { display:flex; flex-direction:column; gap:10px; }

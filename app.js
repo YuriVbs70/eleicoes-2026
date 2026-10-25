@@ -53,7 +53,7 @@
     const base = urnas > 0
       ? (officialK > 0 ? 'Base: oficial (' + pct + ' dos votos) + ' + fmtNumber.format(urnas) + ' urnas por seção' : 'Base: 1º turno + ' + fmtNumber.format(urnas) + ' urnas ' + (result.buEscopo === 'zz' ? 'do Exterior ' : '') + 'por seção')
       : (officialK > 0 ? 'Base: totalização oficial' : 'Base: 1º turno (sem apuração ainda)');
-    const baseNote = urnas > 0 ? ' · swing de cada seção vs. o 1º turno' : '';
+    const baseNote = urnas > 0 ? '<span class="chance-base-note"> · swing de cada seção vs. o 1º turno</span>' : '';
     const when = timestamp ? new Date(timestamp).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
     return '<section class="data-panel chance-panel" aria-live="polite"><div class="section-heading compact"><div><p class="eyebrow">MONTE CARLO · 5.000 SIMULAÇÕES</p><h2>Chance de vitória</h2></div><span class="chance-status">' + (stale ? 'desatualizada' : 'atualizada') + '</span></div>' +
       '<p class="chance-label">estimativa estatística, não oficial</p><p class="chance-base">' + base + baseNote + '</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong' + twAttr('ch-a', flavioRounded, 'pct0') + '>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong' + twAttr('ch-b', ptRounded, 'pct0') + '>' + ptRounded + '%</strong></span></div>' +
