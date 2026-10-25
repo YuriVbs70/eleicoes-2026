@@ -589,3 +589,9 @@ html[data-theme="light"] .tc-src { color:#8a5a00; }
   .tc-scope-more { display:none; }
   .score-source { flex-basis:100%; }
 }
+@media (min-width:1024px) {
+  .score-candidate.score-lula .candidate-photo { grid-column:1; grid-row:1 / span 2; }
+  .score-candidate.score-lula .score-identity { grid-column:2; grid-row:1; }
+  .score-candidate.score-lula .score-percent { grid-column:2; grid-row:2; }
+  .score-candidate.score-lula .score-votes { grid-column:2; }
+}
