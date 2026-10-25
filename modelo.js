@@ -11,6 +11,36 @@
   const valid = x => typeof x === 'number' && Number.isFinite(x);
   const candidate = (row, n) => row && Array.isArray(row.cands) && row.cands.find(c => String(c.n) === n);
 
+  function hashSeed(value) {
+    const text = String(value);
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function mulberry32(seed) {
+    let state = seed >>> 0;
+    return function () {
+      state = (state + 0x6D2B79F5) | 0;
+      let value = state;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function snapshotSeed(snapshot, version) {
+    const values = UFS.map(uf => {
+      const row = snapshot && snapshot.pres && snapshot.pres.r2 && snapshot.pres.r2[uf];
+      const pt = candidate(row, '13'), flavio = candidate(row, '22');
+      return [uf, row && row.pst, pt && pt.v, flavio && flavio.v];
+    });
+    return hashSeed(JSON.stringify([version || 'modelo-v1', values]));
+  }
+
   function normal(random) {
     let u = 0, v = 0;
     while (!u) u = random();
@@ -20,7 +50,7 @@
 
   function simulate(model, snapshot, options = {}) {
     const count = options.simulations === undefined ? 5000 : options.simulations;
-    const random = options.random || Math.random;
+    const random = options.random || mulberry32(options.seed === undefined ? snapshotSeed(snapshot || { pres: { r2: {} } }, model && model.versao) : hashSeed(options.seed));
     if (!model || !snapshot || !snapshot.pres || !snapshot.pres.r1 || !snapshot.pres.r2 || !model.abrangencias || !model.nacional || !Number.isInteger(count) || count < 1 || !valid(model.nacional.sd_nac) || model.nacional.sd_nac < 0) return unavailable('parâmetros ou dados ausentes');
     const rows = [];
     for (const uf of UFS) {

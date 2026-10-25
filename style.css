@@ -189,6 +189,100 @@ html[data-theme="light"] .uf-region { stroke:#505b78; }.uf-labels text { fill:va
   .dashboard-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"score score" "chance projection" "center side" "timeline timeline"; }
 }
 
+/* Acabamento do passo 35: guias ancoradas, rótulos nítidos e chance sem corte. */
+.uf-labels text { fill:#fff; stroke:#10152b; stroke-width:3px; paint-order:stroke fill; font:700 20px "Space Grotesk",sans-serif; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+.uf-labels .uf-guide { fill:none; stroke:#d8e4ff; stroke-width:1.5px; opacity:.82; vector-effect:non-scaling-stroke; }
+.chance-mobile-trigger { display:none; }
+@media (min-width:701px) {
+  .uf-labels text[data-uf="rn"],.uf-labels text[data-uf="pb"],.uf-labels text[data-uf="pe"],.uf-labels text[data-uf="al"],.uf-labels text[data-uf="se"],.uf-labels text[data-uf="es"],.uf-labels text[data-uf="rj"],.uf-labels text[data-uf="df"] { display:none; }
+}
+@media (min-width:1024px) {
+  .dashboard-side { grid-template-rows:minmax(176px,auto) minmax(0,1fr); }
+  #pres-chance { max-height:none; overflow:visible; }
+  #pres-chance .data-panel { padding:9px 12px; }
+  #pres-chance .chance-label { margin:0 0 4px; font-size:.62rem; }
+  #pres-chance .chance-values strong { font-size:1.32rem; }
+  #pres-chance .chance-bar { height:7px; margin:5px 0 3px; }
+  #pres-chance .chance-time { font-size:.57rem; line-height:1.25; }
+  #pres-chance .chance-summary { margin-top:4px; font-size:.59rem; line-height:1.28; }
+  #pres-chance .chance-summary p { margin:1px 0; }
+  #pres-chance .chance-method { margin-top:4px; padding-top:4px; font-size:.59rem; line-height:1.35; }
+  #pres-chance .chance-method summary { font-size:.61rem; }
+}
+html[data-theme="light"] .uf-region.leader-neutral { --uf-fill:#d9dcef!important; stroke:#9aa0c3; }
+html[data-theme="light"] .uf-region { stroke:#9aa0c3; }
+html[data-theme="light"] .uf-map svg { filter:drop-shadow(0 4px 0 #c2c8dc) drop-shadow(0 8px 10px rgb(43 52 83 / 18%)); }
+html[data-theme="light"] .uf-labels text { fill:#202641; stroke:#fff; stroke-width:3px; }
+html[data-theme="light"] .uf-labels .uf-guide { stroke:#59617f; opacity:.78; }
+html[data-theme="light"] .pres-scoreboard { color:#171b31; background:linear-gradient(145deg,#fff,#edf0fa) padding-box,linear-gradient(110deg,rgb(197 63 89 / 45%),rgb(101 81 200 / 35%),rgb(8 121 158 / 42%)) border-box; }
+html[data-theme="light"] .pres-scoreboard .score-identity h3,
+html[data-theme="light"] .pres-scoreboard .score-votes,
+html[data-theme="light"] .pres-scoreboard .score-summary,
+html[data-theme="light"] .pres-scoreboard .score-difference,
+html[data-theme="light"] .pres-scoreboard .score-difference>span,
+html[data-theme="light"] .pres-scoreboard .score-difference small { color:#343b58; }
+html[data-theme="light"] .header-status { color:#3f4864; }
+html[data-theme="light"] .uf-chip { border-color:#aeb5ce; }
+@media (max-width:700px) {
+  .site-header { height:48px; min-height:48px; gap:6px; padding:0 10px; }
+  .site-header .brand { flex:none; gap:4px; font-size:.52rem; letter-spacing:.08em; }
+  .site-header .brand-mark { width:27px; height:27px; border-radius:9px; font-size:.74rem; }
+  .site-header .intro-heading { min-width:0; flex:1; }
+  .site-header .intro-heading h1 { overflow:hidden; font-size:.65rem; white-space:nowrap; text-overflow:ellipsis; }
+  .header-actions { flex:none; gap:5px; }
+  .header-status { max-width:28px; overflow:hidden; gap:0; font-size:0; }
+  .header-status .status-dot { width:7px; height:7px; }
+  .settings-trigger { width:30px; height:30px; padding:0; border-radius:9px; font-size:.95rem; }
+  .page-shell { width:calc(100% - 24px); }
+  .desktop-view-heading { display:flex; grid-area:meta; flex-direction:row; align-items:center; margin:0; }
+  .desktop-view-heading .eyebrow { display:none; }
+  .desktop-view-heading h2 { font-size:.68rem; }
+  #pres-update { font-size:.55rem; }
+  .dashboard-grid { gap:5px; }
+  #pres-cards { min-width:0; }
+  #pres-cards > .pres-scoreboard { padding:7px 9px 6px; border-radius:13px; }
+  #pres-cards .score-candidate { grid-template-columns:28px minmax(0,1fr); gap:2px 5px; }
+  #pres-cards .score-candidate.score-flavio { grid-template-columns:minmax(0,1fr) 28px; }
+  #pres-cards .score-candidate .candidate-photo { width:26px; height:26px; border-radius:8px; }
+  #pres-cards .score-identity h3 { margin:0; font-size:.68rem; }
+  #pres-cards .score-identity .candidate-id { font-size:.48rem; }
+  #pres-cards .score-percent { font-size:1rem; }
+  #pres-cards .score-votes { font-size:.5rem; }
+  #pres-cards .score-split { height:7px; margin:5px 0 4px; }
+  #pres-cards .score-summary { font-size:.53rem; gap:2px 6px; }
+  #pres-cards .score-difference { margin-top:3px; padding-top:3px; font-size:.54rem; }
+  #pres-cards .score-difference>strong { font-size:.58rem; }
+  #pres-cards { order:1; }
+  .desktop-view-heading { order:2; }
+  #pres-chance { order:3; }
+  .chance-panel { padding:5px 8px!important; }
+  .chance-panel > .section-heading,.chance-label,.chance-time,.chance-summary { display:none; }
+  .chance-panel .chance-values { display:none; }
+  .chance-panel .chance-bar { height:5px; margin:0 0 3px; }
+  .chance-mobile-trigger { display:block; width:100%; padding:2px 0; border:0; color:var(--muted); background:transparent; font-size:.62rem; font-weight:750; text-align:center; }
+  .chance-method { margin-top:2px; padding-top:2px; font-size:.63rem; }
+  .chance-method:not([open]) > :not(summary) { display:none; }
+  .dashboard-grid { grid-template-areas:"score" "meta" "chance" "center" "timeline"; }
+  .dashboard-center { order:4; }
+  .ufs-panel { padding:5px 4px!important; }
+  .ufs-panel > .section-heading,.ufs-help,.swing-legend,.uf-detail-tools,.uf-detail { display:none!important; }
+  .map-dispute-toggle { display:none; }
+  .map-layout { position:relative; display:block; width:100%; max-width:100%; margin:0 auto; }
+  .uf-map { width:100%; height:auto; display:block; margin:0 auto; }
+  .uf-map svg { display:block; width:100%; max-width:100%; height:auto; max-height:calc(100svh - 260px); margin:0 auto; }
+  .map-aside { display:contents; }
+  .map-chips { display:none; }
+  .map-exterior { position:absolute; right:8px; bottom:9px; width:72px; }
+  .uf-exterior-button { min-height:43px; border-radius:10px; font-size:.58rem; }
+  .uf-exterior-button span { font-size:.48rem; }
+  .uf-labels text { font-size:11px; }
+  .uf-labels .uf-guide { display:none; }
+  html[data-theme="light"] .pres-scoreboard .score-identity h3,
+  html[data-theme="light"] .pres-scoreboard .score-votes,
+  html[data-theme="light"] .pres-scoreboard .score-summary,
+  html[data-theme="light"] .pres-scoreboard .score-difference { color:#343b58; }
+}
+
 /* Passo 29: seletor de disputa e seleção rápida conectados ao mapa. */
 .map-dispute-toggle { width:max-content; margin:0 0 10px; }
 .map-dispute-toggle .tab { min-width:112px; }
@@ -296,4 +390,39 @@ html[data-theme="light"] .uf-region { stroke:#505b78; }.uf-labels text { fill:va
   .dashboard-side { display:contents; }
   .dashboard-side > #pres-chance { grid-area:chance; }
   .dashboard-side > .timeline-panel { grid-area:timeline; }
+}
+
+/* Rodada 36 (Grok): mobile em coluna única, centralizado */
+@media (max-width:1023px) {
+  .dashboard-grid { display:flex !important; flex-direction:column; align-items:stretch; height:auto; gap:10px; }
+  .dashboard-grid > *, .dashboard-main > * { width:100%; max-width:100%; min-width:0; margin-left:0; margin-right:0; }
+  #pres-cards { order:1; } #pres-chance { order:2; } .dashboard-center { order:3; }  .timeline-panel { order:5; }
+}
+@media (max-width:1023px) {
+  .dashboard-side { display:contents; }
+
+  .ufs-panel { padding:10px; }
+  .ufs-panel > .section-heading, .ufs-panel > .ufs-help { display:none; }
+  .ufs-panel .map-dispute-toggle { margin:0 auto 6px; }
+  .ufs-panel .swing-legend { justify-content:center; margin-bottom:4px; font-size:.6rem; gap:8px; }
+  .map-layout { position:relative; display:block; margin:0 auto; }
+  .map-aside .map-chips { display:none; }
+  .map-exterior { position:absolute; right:4px; bottom:4px; width:64px; z-index:2; }
+}
+@media (max-width:1023px) {
+  .dashboard-grid #pres-cards { order:1 !important; }
+  .dashboard-grid #pres-chance { order:2 !important; }
+  .dashboard-grid .dashboard-center { order:3 !important; }
+  .dashboard-grid .timeline-panel { order:5 !important; }
+  .dashboard-grid .desktop-view-heading { order:6 !important; }
+}
+@media (max-width:1023px) {
+  .ufs-panel .map-dispute-toggle { display:flex !important; width:max-content; margin:0 auto 6px; }
+  .ufs-panel .map-dispute-toggle .tab { min-width:0; padding:6px 14px; font-size:.72rem; }
+}
+@media (max-width:1023px) { .ufs-panel .uf-detail-tools { display:flex !important; justify-content:center; margin:8px 0; } }
+@media (max-width:1023px) {
+  .ufs-panel .swing-legend { display:flex !important; }
+  .ufs-panel .uf-detail[data-open="true"] { display:block !important; position:fixed; left:8px; right:8px; bottom:calc(64px + env(safe-area-inset-bottom, 0px)); z-index:40; max-height:55vh; overflow:auto; margin:0; box-shadow:0 -12px 40px rgb(0 0 0 / 55%); background:rgb(12 16 42 / 97%); }
+  html[data-theme="light"] .ufs-panel .uf-detail[data-open="true"] { background:rgb(248 249 255 / 98%); }
 }

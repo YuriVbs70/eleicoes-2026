@@ -33,6 +33,8 @@
   let replayIndex = null;
   let liveSnapshot = null;
   const seenMilestones = new Set();
+  let mapGuideObserver = null;
+  let mapGuideFrame = 0;
   let electionModel = null;
   let chanceVersion = 0;
   let lastChance = null;
@@ -50,8 +52,9 @@
       '<p class="chance-label">estimativa estatística, não oficial</p><div class="chance-values"><span class="chance-flavio"><b>Flávio</b><strong>' + flavioRounded + '%</strong></span><span class="chance-lula"><b>Lula</b><strong>' + ptRounded + '%</strong></span></div>' +
       '<div class="chance-bar" role="group" aria-label="Chance de vitória: Flávio ' + flavioRounded + ' por cento, Lula ' + ptRounded + ' por cento"><span class="chance-bar-flavio" role="meter" aria-label="Chance de vitória de Flávio Bolsonaro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + flavioRounded + '" style="width:' + flavio + '%"></span><span class="chance-bar-lula" role="meter" aria-label="Chance de vitória de Lula" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + ptRounded + '" style="width:' + pt + '%"></span></div>' +
       '<p class="chance-time">' + (result.tie ? 'Empate nas simulações' : 'Probabilidade de vitória · não é percentual de votos') + ' · atualizado às ' + when + (stale ? ' · último cálculo válido' : '') + '</p>' +
-      '<div class="chance-summary"><p>Probabilidade da disputa presidencial. Base: votos válidos e resultado bilateral do 1º turno de 2026.</p><p>Incerteza calibrada com 2022; sem histórico da ordem de apuração.</p></div>' +
-      '<details class="chance-method"><summary>Como calculamos</summary><p>Executamos 5.000 simulações usando a base bilateral e os votos válidos do 1º turno de 2026. A dispersão entre turnos é calibrada somente com os dados de 2022; cada simulação aplica um choque nacional comum e choques estaduais. Votos já contados ficam fixos e a incerteza diminui conforme a apuração avança, usando % de seções como aproximação.</p><p>Os pesos vêm do 1º turno e % de seções aproxima a fração dos votos contados. <strong>Não há dados históricos de ordem de apuração</strong>, portanto o modelo não corrige esse viés. Probabilidade não é resultado oficial nem garantia.</p><p><a href="data/historico.json">Histórico</a> · <a href="data/modelo.json">Parâmetros</a> · <a href="https://resultados.tse.jus.br/oficial/ele2026/" target="_blank" rel="noopener noreferrer">Fontes TSE</a></p></details></section>';
+      '<button class="chance-mobile-trigger" type="button" aria-controls="chance-method">Chance · Flávio ' + flavioRounded + '% · ' + ptRounded + '% Lula · estimativa, não oficial</button>' +
+      '<div class="chance-summary"><p>Base bilateral do 1º turno; pesos pelos votos válidos.</p><p>Incerteza calibrada com dados de 2022.</p></div>' +
+      '<details class="chance-method" id="chance-method"><summary>Como calculamos</summary><p>Executamos 5.000 simulações usando a base bilateral e os votos válidos do 1º turno de 2026. A dispersão entre turnos é calibrada somente com os dados de 2022; cada simulação aplica um choque nacional comum e choques estaduais. Votos já contados ficam fixos e a incerteza diminui conforme a apuração avança, usando % de seções como aproximação.</p><p>Base: votos válidos e resultado bilateral do 1º turno de 2026. Incerteza calibrada com 2022; sem histórico da ordem de apuração. Os pesos vêm do 1º turno e % de seções aproxima a fração dos votos contados. <strong>Não há dados históricos de ordem de apuração</strong>, portanto o modelo não corrige esse viés. Probabilidade não é resultado oficial nem garantia.</p><p><a href="data/historico.json">Histórico</a> · <a href="data/modelo.json">Parâmetros</a> · <a href="https://resultados.tse.jus.br/oficial/ele2026/" target="_blank" rel="noopener noreferrer">Fontes TSE</a></p></details></section>';
   }
   function updateChance(snapshot, stale) {
     const target = typeof document !== 'undefined' ? $('pres-chance') : null;
@@ -316,8 +319,14 @@
     document.querySelectorAll('.uf-region[data-uf]').forEach((path) => path.classList.toggle('region-muted', preferences.region !== 'all' && !(REGION_UFS[preferences.region] || []).includes(path.dataset.uf)));
     const ext = document.querySelector('#uf-exterior [data-uf="zz"]'); if (ext) ext.classList.toggle('region-muted', preferences.region !== 'all' && !(REGION_UFS[preferences.region] || []).includes('zz'));
     const chips = document.querySelectorAll('#uf-chips [data-uf]'); chips.forEach((chip) => chip.classList.toggle('region-muted', preferences.region !== 'all' && !(REGION_UFS[preferences.region] || []).includes(chip.dataset.uf)));
+    const mapSvg = document.querySelector('#uf-map svg'); if (mapSvg) scheduleMapGuides(mapSvg);
   }
   function setupPreferences() {
+    const chance = $('pres-chance');
+    if (chance) chance.addEventListener('click', (event) => {
+      if (!event.target.closest('.chance-mobile-trigger')) return;
+      const details = $('chance-method'); if (details) details.open = !details.open;
+    });
     const trigger = $('settings-trigger');
     if (trigger) trigger.addEventListener('click', () => { if (openAnalysisPanel) openAnalysisPanel('settings'); });
     document.querySelectorAll('[data-map-mode]').forEach((button) => button.addEventListener('click', () => { preferences.mapMode = button.dataset.mapMode; preferences = normalizePreferences(preferences); persistPreferences(); applyPreferences(); renderUfs(window.currentElectionSnapshot || {}); }));
@@ -503,13 +512,60 @@
     return { fill: lead === 0 ? '#77718d' : lead > 0 ? 'rgba(49,193,232,.75)' : 'rgba(255,108,126,.75)', value:null, state: lead === 0 ? 'empate estadual' : (lead > 0 ? first.nm : second.nm) + ' lidera' };
   }
   function addMapLabels(svg) {
-    if (!svg || svg.querySelector('.uf-labels')) return;
-    const points = { ac:[104,410], al:[626,570], am:[210,270], ap:[349,166], ba:[540,478], ce:[586,354], df:[470,489], es:[603,572], go:[434,478], ma:[500,352], mg:[526,565], ms:[394,570], mt:[350,450], pa:[400,286], pb:[628,392], pe:[612,414], pi:[536,394], pr:[440,660], rj:[562,636], rn:[617,366], ro:[280,500], rr:[317,150], rs:[420,735], sc:[454,703], se:[617,515], sp:[477,610], to:[454,390] };
-    const ns='http://www.w3.org/2000/svg', group=document.createElementNS(ns,'g'); group.setAttribute('class','uf-labels'); group.setAttribute('aria-hidden','true'); group.setAttribute('pointer-events','none');
+    if (!svg) return;
+    let group = svg.querySelector('.uf-labels');
+    if (!group) {
+      const ns='http://www.w3.org/2000/svg';
+      group=document.createElementNS(ns,'g'); group.setAttribute('class','uf-labels'); group.setAttribute('aria-hidden','true'); group.setAttribute('pointer-events','none');
+      // Centro de maior afastamento da borda, aproximado por amostragem do interior de cada path.
+      const chipOrder=['rn','pb','pe','al','se','es','rj','df'];
+      svg.querySelectorAll('path[id]').forEach(path => {
+        const box = path.getBBox(), point = svg.createSVGPoint();
+        let best = null, bestDistance = -1;
+        const edgeLength = path.getTotalLength(), edgeSamples = [];
+        for (let i=0;i<72;i++) edgeSamples.push(path.getPointAtLength(edgeLength*i/72));
+        for (let y=box.y+2;y<box.y+box.height;y+=7) for (let x=box.x+2;x<box.x+box.width;x+=7) {
+          point.x=x; point.y=y;
+          if (!path.isPointInFill(point)) continue;
+          let distance=Infinity;
+          for (const edge of edgeSamples) distance=Math.min(distance,Math.hypot(edge.x-x,edge.y-y));
+          if (distance>bestDistance) { bestDistance=distance; best={x,y}; }
+        }
+        if (!best) best={x:box.x+box.width/2,y:box.y+box.height/2};
+        const node=document.createElementNS(ns,'text'); node.dataset.uf=path.id.toLowerCase(); node.setAttribute('x',best.x); node.setAttribute('y',best.y); node.textContent=path.id; group.appendChild(node);
+      });
+      svg.appendChild(group);
+    }
+    updateMapGuides(svg);
+    if (!mapGuideObserver && typeof ResizeObserver !== 'undefined') {
+      mapGuideObserver = new ResizeObserver(() => scheduleMapGuides(svg));
+      for (const target of [svg, document.querySelector('.map-layout'), document.querySelector('#uf-chips')]) if (target) mapGuideObserver.observe(target);
+    }
+  }
+  function scheduleMapGuides(svg) {
+    if (mapGuideFrame) cancelAnimationFrame(mapGuideFrame);
+    mapGuideFrame = requestAnimationFrame(() => { mapGuideFrame=0; updateMapGuides(svg); });
+  }
+  function updateMapGuides(svg) {
+    if (!svg || !svg.isConnected) return;
+    const ns='http://www.w3.org/2000/svg', group=svg.querySelector('.uf-labels');
+    if (!group) return;
+    let guides=group.querySelector('.uf-guides');
+    if (!guides) { guides=document.createElementNS(ns,'g'); guides.setAttribute('class','uf-guides'); group.prepend(guides); }
     const chipOrder=['rn','pb','pe','al','se','es','rj','df'];
-    chipOrder.forEach((uf,index)=>{ const xy=points[uf], line=document.createElementNS(ns,'path'); line.setAttribute('d','M'+xy[0]+' '+xy[1]+' L'+Math.min(760,xy[0]+34)+' '+xy[1]+' L790 '+(275+index*39)); line.setAttribute('class','uf-guide'); group.appendChild(line); });
-    Object.entries(points).forEach(([uf,xy])=>{ const node=document.createElementNS(ns,'text'); node.setAttribute('x',xy[0]); node.setAttribute('y',xy[1]); node.textContent=uf.toUpperCase(); group.appendChild(node); });
-    svg.appendChild(group);
+    const chipsVisible = matchMedia('(min-width: 701px)').matches && getComputedStyle(document.querySelector('.map-chips')).display !== 'none';
+    guides.replaceChildren();
+    if (!chipsVisible) return;
+    const inverse=svg.getScreenCTM();
+    if (!inverse) return;
+    const toSvg=inverse.inverse(), point=svg.createSVGPoint();
+    for (const uf of chipOrder) {
+      const chip=document.querySelector('#uf-chips [data-uf="'+uf+'"]'), label=group.querySelector('text[data-uf="'+uf+'"]');
+      if (!chip || !label || !chip.getClientRects().length) continue;
+      const rect=chip.getBoundingClientRect(); point.x=rect.left; point.y=rect.top+rect.height/2;
+      const start=point.matrixTransform(toSvg), line=document.createElementNS(ns,'path');
+      line.setAttribute('d','M'+start.x+' '+start.y+' L'+label.getAttribute('x')+' '+label.getAttribute('y')); line.setAttribute('class','uf-guide'); guides.appendChild(line);
+    }
   }
   function mapLegend(mode, waiting) {
     return mode === 'progress'
