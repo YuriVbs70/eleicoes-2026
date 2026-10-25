@@ -88,7 +88,9 @@
     // "quais municípios chegaram primeiro" com mudança de voto. Mesmo peso k: são os mesmos votos oficiais, sem contar duas vezes.
     const mun = bu && bu.mun;
     const munOk = !!(mun && valid(mun.swing) && valid(mun.cov) && mun.cov >= 0.002 && k > 0 && mun.ufs && typeof mun.ufs === 'object');
-    const offCenter = munOk ? Math.max(-0.15, Math.min(0.15, mun.swing)) : rawCenter;
+    // v3.20: swing_raw é o swing verdadeiro; mun.swing no feed vem compensado para as abas antigas (modelo 0,05).
+    const munSwing = valid(mun && mun.swing_raw) ? mun.swing_raw : (mun && mun.swing);
+    const offCenter = munOk ? Math.max(-0.15, Math.min(0.15, munSwing)) : rawCenter;
     // v3.19: encolhimento 0,05→0,15. As cidades que apuram cedo (interior, Sul/CO) não falam pelas capitais; o ganho medido só manda no centro à medida que a apuração avança.
     const center = buWeight > 0 ? (k * offCenter + kS * cS + kZ * cZ) / (k + kS + kZ + 0.15) : offCenter * (k / (k + 0.15));
     // Só a amostra do Brasil reduz a incerteza nacional; o Exterior move o centro, mas não estreita.
